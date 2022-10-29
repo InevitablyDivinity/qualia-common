@@ -1,0 +1,98 @@
+﻿IndentWidth: '2'
+TabWidth: '2'
+UseTab: Never
+ColumnLimit: '80'
+---
+Language: Cpp
+Standard: c++20
+Cpp11BracedListStyle: false
+AccessModifierOffset: '-2'
+
+AlignAfterOpenBracket: Align
+AlignArrayOfStructures: Left
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveBitFields: Consecutive
+AlignConsecutiveDeclarations: Consecutive
+AlignEscapedNewlines: Right
+
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: All
+
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: None
+AlwaysBreakTemplateDeclarations: Yes
+
+BreakBeforeBinaryOperators: None
+BreakBeforeBraces: Allman
+BreakConstructorInitializers: BeforeColon
+BreakInheritanceList: BeforeColon
+
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: Always
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: false
+  AfterStruct: true
+  AfterUnion: true
+  AfterExternBlock: false
+  BeforeCatch: true
+  BeforeElse: true
+  BeforeLambdaBody: true
+  BeforeWhile: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+
+ConstructorInitializerIndentWidth: 2
+ContinuationIndentWidth: 2
+
+EmptyLineAfterAccessModifier: Always
+EmptyLineBeforeAccessModifier: Always
+
+IncludeBlocks: Preserve
+IncludeIsMainRegex: (Test)?$
+
+MaxEmptyLinesToKeep: 1
+
+NamespaceIndentation: None
+IndentExternBlock: NoIndent
+IndentPPDirectives: AfterHash
+IndentRequires: true
+IndentCaseLabels: true
+
+PenaltyBreakAssignment: '2'
+PenaltyBreakBeforeFirstCallParameter: '19'
+PenaltyBreakComment: '300'
+PenaltyBreakFirstLessLess: '120'
+PenaltyBreakString: '1000'
+PenaltyBreakTemplateDeclaration: '10'
+PenaltyExcessCharacter: '1000000'
+PenaltyReturnTypeOnItsOwnLine: '60'
+
+PointerAlignment: Left
+ReferenceAlignment: Pointer
+
+SeparateDefinitionBlocks: Leave
+ShortNamespaceLines: 1
+
+SpaceBeforeCpp11BracedList: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpacesBeforeTrailingComments: '1'
+
+SpaceAfterTemplateKeyword: false
+
+SpacesInAngles: false
+SpacesInParentheses: true
+SpacesInSquareBrackets: true
+
+# clang-format 15
+#RequiresClausePosition: OwnLine
+
+
+# clang-format 14
+#QualifierOrder: [ 'inline', 'static', 'const', 'constexpr', 'volatile', 'type' ]
+
+...

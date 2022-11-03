@@ -69,6 +69,9 @@ public:
 
   bool operator==(const String &rhs) const
   {
+    if (rhs.m_size != m_size)
+      return false;
+
     return std::strncmp(m_data, rhs.m_data, m_size) == 0;
   }
 

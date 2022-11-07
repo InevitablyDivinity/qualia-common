@@ -41,7 +41,8 @@ Output copy( Input first, Input last, Output output )
   using type = decltype( output );
   if constexpr ( std::is_trivially_copyable_v<type> )
   {
-    std::memcpy( reinterpret_cast<void*>( output ), reinterpret_cast<const void*>( first ),
+    std::memcpy( reinterpret_cast<void*>( output ),
+                 reinterpret_cast<const void*>( first ),
                  std::uintptr_t( last ) - std::uintptr_t( first ) );
 
     return output + ( last - first );

@@ -17,8 +17,8 @@ class Vector
 public:
 
   using type            = T;
-  using iterator        = type *;
-  using const_iterator  = const type *;
+  using iterator        = type*;
+  using const_iterator  = const type*;
   using reference       = type&;
   using const_reference = const type&;
 
@@ -85,9 +85,9 @@ public:
   template<typename... Args>
   reference emplace_back( Args&&... args );
 
-  void      pop_back();
-  void      resize( std::size_t size );
-  void      swap( Vector& other );
+  void pop_back();
+  void resize( std::size_t size );
+  void swap( Vector& other );
 
   // Iterators
   iterator       begin() { return m_items; }
@@ -209,7 +209,8 @@ void Vector<T>::reserve( std::size_t capacity )
 {
   if ( capacity > m_capacity )
   {
-    m_capacity        = capacity + m_minimumAllocation - ( capacity % m_minimumAllocation );
+    m_capacity =
+      capacity + m_minimumAllocation - ( capacity % m_minimumAllocation );
     std::size_t bytes = m_capacity * sizeof( T );
 
     m_items = reinterpret_cast<T*>( std::realloc( m_items, bytes ) );
@@ -291,7 +292,7 @@ Vector<T>& Vector<T>::operator=( std::initializer_list<type> items )
 template<typename T>
 Vector<T>& Vector<T>::operator=( const Vector& rhs )
 {
-  if (*this == rhs)
+  if ( *this == rhs )
     return *this;
 
   if ( m_items != nullptr )
@@ -304,7 +305,7 @@ Vector<T>& Vector<T>::operator=( const Vector& rhs )
 template<typename T>
 Vector<T>& Vector<T>::operator=( Vector&& rhs )
 {
-  if (*this == rhs)
+  if ( *this == rhs )
     return *this;
 
   if ( m_items != nullptr )
@@ -462,8 +463,8 @@ void Vector<T>::destruct()
   ql::destroy( begin(), end() );
   std::free( m_items );
 
-  m_items = nullptr;
-  m_size = 0;
+  m_items    = nullptr;
+  m_size     = 0;
   m_capacity = 0;
 }
 

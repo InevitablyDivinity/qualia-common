@@ -47,7 +47,7 @@ template<typename ForwardIterator>
 void destroy( ForwardIterator first, ForwardIterator last )
 {
   for ( auto object = first; object != last; object++ )
-    destroy_at( &(*object) );
+    destroy_at( &( *object ) );
 }
 
 template<typename ForwardIterator>
@@ -60,6 +60,7 @@ template<typename T>
 class default_delete
 {
 public:
+
   void operator()( T* object ) const { delete object; }
 };
 
@@ -67,6 +68,7 @@ template<typename T>
 class default_delete<T[]>
 {
 public:
+
   void operator()( T* array ) const { delete[] array; }
 };
 
@@ -125,7 +127,7 @@ public:
 
   ~UniquePtr()
   {
-    if (base::m_ptr != nullptr)
+    if ( base::m_ptr != nullptr )
       destruct();
   }
 
@@ -147,15 +149,9 @@ public:
     return *this;
   }
 
-  void assign( UniquePtr&& other )
-  {
-    ql::swap( base::m_ptr, other.m_ptr );
-  }
+  void assign( UniquePtr&& other ) { ql::swap( base::m_ptr, other.m_ptr ); }
 
-  void assign( type* ptr )
-  {
-    base::m_ptr = ptr;
-  }
+  void assign( type* ptr ) { base::m_ptr = ptr; }
 
   void release() { destruct(); }
 
@@ -234,7 +230,10 @@ public:
 
   void release() { destruct(); }
 
-  std::size_t use_count() const { return m_refCount != nullptr ? *m_refCount : 0; }
+  std::size_t use_count() const
+  {
+    return m_refCount != nullptr ? *m_refCount : 0;
+  }
   bool unique() const { return use_count() > 0; }
 
 protected:
@@ -278,10 +277,7 @@ public:
 
   WeakPtr() = default;
 
-  WeakPtr( const SharedPtr<type, Deleter>& other )
-  {
-    assign( other.m_ptr );
-  }
+  WeakPtr( const SharedPtr<type, Deleter>& other ) { assign( other.m_ptr ); }
 
   WeakPtr( type* ptr ) { assign( ptr ); }
   WeakPtr( const WeakPtr& other ) { assign( other ); }
@@ -317,13 +313,9 @@ public:
     return *this;
   }
 
-  void assign( const SharedPtr<type, Deleter>& other )
-  {
-  }
+  void assign( const SharedPtr<type, Deleter>& other ) {}
 
-  void assign( const WeakPtr& other )
-  {
-  }
+  void assign( const WeakPtr& other ) {}
 
   void assign( WeakPtr&& other )
   {
@@ -331,24 +323,15 @@ public:
     ql::swap( base::m_refCount, other.m_refCount );
   }
 
-  void assign( type* ptr )
-  {
-    base::assign( ptr );
-  }
+  void assign( type* ptr ) { base::assign( ptr ); }
 
   void release() { destruct(); }
 
-  bool expired() const
-  {
-
-  }
+  bool expired() const {}
 
   // Acquires the resource and guarantees an
   // extended lifetime for its usage
-  SharedPtr<type, Deleter> lock() const
-  {
-    return SharedPtr( base::m_ptr );
-  }
+  SharedPtr<type, Deleter> lock() const { return SharedPtr( base::m_ptr ); }
 
 private:
 

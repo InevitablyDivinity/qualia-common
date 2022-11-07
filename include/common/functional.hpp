@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <utility>
+#include "common/types.hpp"
 
 namespace ql
 {
@@ -15,6 +16,9 @@ template<typename R, typename... Args>
 class Function<R( Args... )>
 {
 public:
+
+  using return_type = R;
+  using argument_types = parameter_pack<Args...>;
 
   Function() = default;
 

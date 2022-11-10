@@ -63,7 +63,7 @@ Output copy_n( Input input, std::size_t count, Output output )
   return ql::copy( input, input + count, output );
 }
 
-std::uint64_t fnv1a_hash( const void* data, std::size_t length )
+inline std::uint64_t fnv1a_hash( const void* data, std::size_t length )
 {
   const std::uint64_t FNV_prime        = 0x100000001B3;
   const std::uint64_t FNV_offset_basis = 0xCBF29CE484222325;

@@ -31,9 +31,3 @@ Name | Description
 `ql::Library` | An object encapsulating the functionality of a shared library.
 `ql::Thread` | An object encapsulating the functionality of a thread.
 `ql::Iterator` | An object that represents the position of an item within a container and can be used to traverse items within said container.
-
-## Other
-### The `nameof` operator macro
-Defined in: `common/nameof.hpp`
-
-Can be used to get the fully-qualified of a type.

@@ -1,5 +1,4 @@
 #pragma once
-#include "common/functional.hpp"
 #include <cstddef>
 #include <type_traits>
 
@@ -28,11 +27,6 @@ struct callable_type<R ( * )( Args... )> : callable_type<R( Args... )>
 
 template<typename R, typename... Args>
 struct callable_type<R ( & )( Args... )> : callable_type<R( Args... )>
-{
-};
-
-template<typename R, typename... Args>
-struct callable_type<Function<R( Args... )>> : callable_type<R( Args... )>
 {
 };
 

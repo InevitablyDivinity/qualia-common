@@ -19,25 +19,29 @@ public:
 
   using return_type = R;
   using argument_types = parameter_pack<Args...>;
+  using pointer = R (*)(Args...);
 
   Function() = default;
 
-  Function( std::invocable auto callable ) { assign( callable ); }
+  Function( auto&& callable ) { assign( callable ); }
+  Function( pointer callable ) { assign( callable ); }
 
   ~Function() { cleanup(); }
 
-  Function& operator=( const std::invocable auto& callable )
+  Function& operator=( auto&& callable )
   {
     assign( callable );
     return *this;
   }
 
-  R operator()( Args... args )
+  R operator()( Args&&... args )
   {
     return m_callable->call( std::forward( args )... );
   }
 
   operator bool() const { return m_callable != nullptr; }
+
+  pointer target() { return reinterpret_cast<pointer>( m_callable->target() ); }
 
 private:
 
@@ -53,7 +57,7 @@ private:
     }
   }
 
-  void assign( std::invocable auto callable )
+  void assign( auto&& callable )
   {
     cleanup();
 
@@ -61,9 +65,9 @@ private:
     using Wrapper      = Callable<InternalType>;
 
     if ( alignof( InternalType ) <= alignof( std::max_align_t ) )
-      m_callable = new ( &m_stackBuffer ) Wrapper( std::move( callable ) );
+      m_callable = new ( &m_stackBuffer ) Wrapper( callable );
     else
-      m_callable = new Wrapper( std::move( callable ) );
+      m_callable = new Wrapper( callable );
   }
 
   // Use an abstract callable interface
@@ -73,7 +77,8 @@ private:
   public:
 
     virtual ~ICallable()           = default;
-    virtual R call( Args... args ) = 0;
+    virtual R call( Args&&... args ) = 0;
+    virtual void* target() = 0;
   };
 
   template<typename T>
@@ -81,9 +86,16 @@ private:
   {
   public:
 
-    Callable( T callable ) : m_callable( std::move( callable ) ) {}
+    Callable( T&& callable ) : m_callable( callable ) {}
 
-    virtual R call( Args... args ) { return m_callable( args... ); }
+    virtual R call( Args&&... args ) { return m_callable( args... ); }
+    virtual void* target()
+    {
+      if constexpr ( std::is_pointer_v<T> )
+        return m_callable;
+      else
+        return nullptr;
+    }
 
   private:
 
@@ -92,6 +104,19 @@ private:
 
   ICallable*       m_callable = nullptr;
   std::max_align_t m_stackBuffer;
+};
+
+template<typename R, typename... Args>
+Function( R (*)( Args... ) ) -> Function<R( Args... )>;
+
+template<typename T>
+struct callable_type;
+
+template<typename T> class Function;
+
+template<typename R, typename... Args>
+struct callable_type<Function<R( Args... )>> : callable_type<R( Args... )>
+{
 };
 
 void for_each( auto range, auto predicate )

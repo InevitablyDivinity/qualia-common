@@ -62,15 +62,3 @@ struct std::tuple_element<I, ql::Tuple<Ts...>>
   using type =
     typename decltype( ql::get_nth_type<I>( ql::parameter_pack<Ts...>() ) )::type;
 };
-
-template<std::size_t I, typename... Ts>
-constexpr auto& std::get( ql::Tuple<Ts...>& t )
-{
-  return t.template get<I>();
-}
-
-template<std::size_t I, typename... Ts>
-constexpr const auto& std::get( const ql::Tuple<Ts...>& t )
-{
-  return t.template get<I>();
-}

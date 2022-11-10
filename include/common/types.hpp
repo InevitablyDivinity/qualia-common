@@ -11,6 +11,12 @@ struct parameter_pack
 };
 
 template<typename T>
+struct function_prototype {};
+
+template<typename R, typename... Ts>
+struct function_prototype<R(Ts...)> {};
+
+template<typename T>
 struct callable_type;
 
 template<typename R, typename... Args>

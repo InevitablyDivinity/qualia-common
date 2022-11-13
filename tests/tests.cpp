@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include "common/tuple.hpp"
 #include "common/memory.hpp"
+#include "common/variant.hpp"
 
 template<std::size_t I, typename... Ts>
 static bool validate_offset( const ql::Tuple<Ts...>& t )
@@ -74,4 +75,17 @@ TEST( Memory, WeakPtr )
   }
 
   EXPECT_FALSE( observe( weakPtr ) );
+}
+
+TEST( Variant, TypeChecking )
+{
+  ql::Variant<int, float> variant;
+
+  variant = 66.67f;
+  EXPECT_TRUE( variant.holds_alternative<float>() );
+  EXPECT_FALSE( variant.holds_alternative<int>() );
+
+  variant = 1337;
+  EXPECT_TRUE( variant.holds_alternative<int>() );
+  EXPECT_FALSE( variant.holds_alternative<float>() );
 }

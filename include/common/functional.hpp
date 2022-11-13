@@ -27,11 +27,27 @@ public:
   Function( pointer callable ) { assign( callable ); }
   Function( std::nullptr_t ) { assign( std::nullptr_t() ); }
 
-  ~Function() { destruct(); }
+  ~Function()
+  {
+    if ( valid() )
+      destruct();
+  }
 
   Function& operator=( auto&& callable )
   {
+    if ( valid() )
+      destruct();
+
     assign( callable );
+    return *this;
+  }
+
+  Function& operator=( std::nullptr_t )
+  {
+    if ( valid() )
+      destruct();
+
+    assign( std::nullptr_t() );
     return *this;
   }
 
@@ -40,14 +56,13 @@ public:
     return m_callable->call( std::forward( args )... );
   }
 
-  operator bool() const { return m_callable != nullptr; }
+  bool valid() const { return m_callable != nullptr; }
+  operator bool() const { return valid(); }
 
   pointer target() { return reinterpret_cast<pointer>( m_callable->target() ); }
 
   void assign( auto&& callable )
   {
-    destruct();
-
     using InternalType = decltype( callable );
     using Wrapper      = Callable<InternalType>;
 
@@ -76,7 +91,6 @@ private:
     }
   }
 
-
   // Use an abstract callable interface
   // to copy lambda states (captures)
   class ICallable
@@ -86,6 +100,7 @@ private:
     virtual ~ICallable()           = default;
     virtual R call( Args&&... args ) = 0;
     virtual void* target() = 0;
+
   };
 
   template<typename T>

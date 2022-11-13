@@ -48,6 +48,9 @@ public:
   }
 };
 
+template<typename... Ts>
+Tuple( Ts... ) -> Tuple<Ts...>;
+
 } // namespace ql
 
 template<typename... Ts>
@@ -67,6 +70,12 @@ namespace std
 {
   template<std::size_t I, typename... Ts>
   auto& get( ql::Tuple<Ts...>& t )
+  {
+    return t.template get<I>();
+  }
+
+  template<std::size_t I, typename... Ts>
+  const auto& get( const ql::Tuple<Ts...>& t )
   {
     return t.template get<I>();
   }

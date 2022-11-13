@@ -31,3 +31,4 @@ Name | Description
 `ql::Library` | An object encapsulating the functionality of a shared library.
 `ql::Thread` | An object encapsulating the functionality of a thread.
 `ql::Iterator` | An object that represents the position of an item within a container and can be used to traverse items within said container.
+`ql::Variant` | An object capable of holding one of various specified types.

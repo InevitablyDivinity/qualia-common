@@ -27,7 +27,7 @@ public:
   Function( pointer callable ) { assign( callable ); }
   Function( std::nullptr_t ) { assign( std::nullptr_t() ); }
 
-  ~Function() { cleanup(); }
+  ~Function() { destruct(); }
 
   Function& operator=( auto&& callable )
   {
@@ -44,23 +44,9 @@ public:
 
   pointer target() { return reinterpret_cast<pointer>( m_callable->target() ); }
 
-private:
-
-  void cleanup()
-  {
-    if ( m_callable )
-    {
-      // If we're using SSBO, then destroy - don't delete.
-      if ( std::uintptr_t( m_callable ) == std::uintptr_t( &m_stackBuffer ) )
-        m_callable->~ICallable();
-      else
-        delete m_callable;
-    }
-  }
-
   void assign( auto&& callable )
   {
-    cleanup();
+    destruct();
 
     using InternalType = decltype( callable );
     using Wrapper      = Callable<InternalType>;
@@ -74,6 +60,20 @@ private:
   void assign( std::nullptr_t )
   {
     m_callable = nullptr;
+  }
+
+private:
+
+  void destruct()
+  {
+    if ( m_callable )
+    {
+      // If we're using SSBO, then destroy - don't delete.
+      if ( std::uintptr_t( m_callable ) == std::uintptr_t( &m_stackBuffer ) )
+        m_callable->~ICallable();
+      else
+        delete m_callable;
+    }
   }
 
 

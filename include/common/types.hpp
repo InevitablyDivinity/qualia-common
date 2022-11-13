@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <type_traits>
+#include <concepts>
 
 namespace ql
 {
@@ -118,5 +119,72 @@ consteval auto get_nth_type( parameter_pack<Ts...> p )
 {
   return get_first_type( remove_n_types<I>( p ) );
 }
+
+template<typename T>
+consteval auto get_largest_type(parameter_pack<T>)
+{
+  return std::type_identity<T>();
+}
+
+template<typename T, typename U, typename... Ts>
+consteval auto get_largest_type(parameter_pack<T, U, Ts...>)
+{
+  if constexpr (sizeof(T) > sizeof(U))
+  {
+    return get_largest_type(parameter_pack<T, Ts...>());
+  }
+  else
+  {
+    return get_largest_type(parameter_pack<U, Ts...>());
+  }
+}
+
+template<typename T>
+consteval std::size_t type_size(std::type_identity<T>)
+{
+  return sizeof(T);
+}
+
+template<typename... Ts>
+consteval auto get_largest_type_size( parameter_pack<Ts...> p )
+{
+  return type_size( get_largest_type( p ) );
+}
+
+// Returns the index of a type from an array of unique types
+template<std::size_t I, typename T, typename U, typename... Ts>
+consteval std::size_t get_index_from_type( parameter_pack<U, Ts...> p )
+{
+  if constexpr ( std::is_same_v<T, U> )
+  {
+    return I;
+  }
+  else
+  {
+    return get_index_from_type<I + 1, T>( parameter_pack<Ts...>() );
+  }
+}
+
+template<typename T, typename U, typename... Ts>
+consteval std::size_t get_index_from_type( parameter_pack<U, Ts...> p )
+{
+  if constexpr ( std::is_same_v<T, U> )
+  {
+    return 0;
+  }
+  else
+  {
+    return get_index_from_type<1, T>( parameter_pack<Ts...>() );
+  }
+}
+
+template<std::size_t I, typename... Ts>
+consteval auto get_type_from_index( parameter_pack<Ts...> p )
+{
+  return get_nth_type<I>( p );
+}
+
+template <typename T, typename... Ts>
+concept is_any_of = ( std::same_as<T, Ts> || ... );
 
 } // namespace ql

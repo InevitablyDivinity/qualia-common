@@ -28,3 +28,6 @@ target_include_directories(
   INTERFACE
     "include"
 )
+
+add_subdirectory(thirdparty/googletest)
+add_subdirectory(tests)

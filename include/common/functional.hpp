@@ -25,6 +25,7 @@ public:
 
   Function( auto&& callable ) { assign( callable ); }
   Function( pointer callable ) { assign( callable ); }
+  Function( std::nullptr_t ) { assign( std::nullptr_t() ); }
 
   ~Function() { cleanup(); }
 
@@ -69,6 +70,12 @@ private:
     else
       m_callable = new Wrapper( callable );
   }
+
+  void assign( std::nullptr_t )
+  {
+    m_callable = nullptr;
+  }
+
 
   // Use an abstract callable interface
   // to copy lambda states (captures)

@@ -62,6 +62,12 @@ consteval auto remove_n_types( parameter_pack<T, Ts...> )
   }
 }
 
+template<typename T>
+consteval bool is_void( std::type_identity<T> )
+{
+  return std::is_same_v<T, void>;
+}
+
 template<std::size_t N, typename T, typename... Ts>
 consteval auto remove_n_types( parameter_pack<T, Ts...> )
 {
@@ -74,6 +80,36 @@ consteval auto remove_n_types( parameter_pack<T, Ts...> )
   {
     static_assert( sizeof...( Ts ) > 0 );
     return remove_n_types<N, 1>( parameter_pack<Ts...>() );
+  }
+}
+
+template<std::size_t N, std::size_t I, typename T, typename... Ts>
+consteval auto get_n_types( parameter_pack<T, Ts...> p )
+{
+  if constexpr ( N == I )
+  {
+    return p;
+  }
+  else
+  {
+    return get_n_types<N, I + 1>( parameter_pack<Ts...>() );
+  }
+}
+
+template<std::size_t N, typename T, typename... Ts>
+consteval auto get_n_types( parameter_pack<T, Ts...> p )
+{
+  if constexpr ( N == 0 )
+  {
+    return ql::parameter_pack<void>();
+  }
+  else if constexpr ( N == 1 )
+  {
+    return ql::parameter_pack<typename decltype( get_first_type( p ) )::type>();
+  }
+  else
+  {
+    return get_n_types<N, 2>( parameter_pack<Ts...>() );
   }
 }
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "common/utility.hpp"
+#include "common/algorithm.hpp"
 #include <concepts>
 #include <cstddef>
 #include <initializer_list>
@@ -92,12 +93,9 @@ public:
 
   List( List&& src )
   {
-    m_begin     = src.m_begin;
-    m_end       = src.m_end;
-    m_size      = src.m_end;
-    src.m_begin = nullptr;
-    src.m_end   = nullptr;
-    src.m_size  = 0;
+    ql::swap( m_begin, src.m_begin );
+    ql::swap( m_end, src.m_end );
+    ql::swap( m_size, src.m_size );
   }
 
   ~List()
@@ -110,8 +108,7 @@ public:
 
   void push_back( Type&& value )
   {
-    Node* node  = new Node();
-    node->value = ql::move( value );
+    Node* node  = new Node { .value = ql::move( value ) };
 
     if ( !m_begin )
     {
@@ -129,8 +126,7 @@ public:
 
   void push_back( const Type& value )
   {
-    Node* node  = new Node();
-    node->value = value;
+    Node* node  = new Node { .value = value };
 
     if ( !m_begin )
     {

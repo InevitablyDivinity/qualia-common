@@ -79,9 +79,8 @@ TEST( Memory, WeakPtr )
 
 TEST( Variant, TypeChecking )
 {
-  ql::Variant<int, float> variant;
+  ql::Variant<int, float> variant = 66.67f;
 
-  variant = 66.67f;
   EXPECT_TRUE( variant.holds_alternative<float>() );
   EXPECT_FALSE( variant.holds_alternative<int>() );
 

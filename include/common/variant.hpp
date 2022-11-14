@@ -11,8 +11,6 @@ namespace ql
   {
   public:
 
-    Variant() = default;
-
     Variant( const is_any_of<Ts...> auto& value )
     {
       assign( value );
@@ -94,7 +92,7 @@ namespace ql
     static constexpr std::size_t m_variantSize = get_largest_type_size( parameter_pack<Ts...>() );
     std::byte m_object[m_variantSize];
     ql::Function<void()> m_destructor;
-    std::size_t m_typeIndex = SIZE_MAX;
+    std::size_t m_typeIndex;
 
   };
 

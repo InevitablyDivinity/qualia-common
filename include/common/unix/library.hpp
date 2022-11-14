@@ -1,7 +1,7 @@
 #pragma once
 #include "common/string.hpp"
 #include <cstdio>
-#include <dlcfn.h>
+#include <dlfcn.h>
 
 namespace ql
 {

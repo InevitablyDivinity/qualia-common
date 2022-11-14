@@ -1,6 +1,7 @@
 #pragma once
 #include "common/types.hpp"
 #include "common/functional.hpp"
+#include "common/memory.hpp"
 
 namespace ql
 {
@@ -35,7 +36,7 @@ namespace ql
     void assign( const is_any_of<Ts...> auto& value )
     {
       using type = std::remove_cvref_t<decltype( value )>;
-      new ( m_data ) type( value );
+      new ( m_object ) type( value );
       m_typeIndex = get_index_from_type<type>( parameter_pack<Ts...>() );
 
       if constexpr ( std::is_class_v<type> && std::is_destructible_v<type> )
@@ -43,8 +44,8 @@ namespace ql
         m_destructor = [this]
         () -> void
         {
-          type* ptr = reinterpret_cast<type*>( m_data );
-          ptr->~type();
+          type* ptr = reinterpret_cast<type*>( m_object );
+          destroy_at( ptr );
         };
       }
       else
@@ -56,13 +57,13 @@ namespace ql
     template<typename T>
     auto& get()
     {
-      return *reinterpret_cast<T*>( &m_data );
+      return *reinterpret_cast<T*>( &m_object );
     }
 
     template<typename T>
     const auto& get() const
     {
-      return *reinterpret_cast<T*>( &m_data );
+      return *reinterpret_cast<T*>( &m_object );
     }
 
     template<std::size_t I>
@@ -90,8 +91,8 @@ namespace ql
       }
     }
 
-    static constexpr std::size_t m_maxSize = get_largest_type_size( parameter_pack<Ts...>() );
-    std::byte m_data[m_maxSize];
+    static constexpr std::size_t m_variantSize = get_largest_type_size( parameter_pack<Ts...>() );
+    std::byte m_object[m_variantSize];
     ql::Function<void()> m_destructor;
     std::size_t m_typeIndex = SIZE_MAX;
 

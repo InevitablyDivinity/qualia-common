@@ -1,6 +1,7 @@
 #pragma once
 #include "common/algorithm.hpp"
 #include "common/iterator.hpp"
+#include "common/utility.hpp"
 #include <cstring>
 #include <cassert>
 #include <type_traits>
@@ -137,6 +138,9 @@ public:
     base::m_object = new type( std::move( object ) );
   }
 
+  UniquePtr( const UniquePtr& other ) { assign( other ); }
+  UniquePtr( UniquePtr&& other ) { assign( ql::move( other ) ); }
+
   ~UniquePtr()
   {
     if ( valid() )
@@ -170,6 +174,16 @@ public:
     return *this;
   }
 
+  void assign( const UniquePtr& other )
+  {
+    m_object = new type( *other.m_object );
+  }
+
+  void assign( UniquePtr&& other )
+  {
+    ql::swap( m_object, other.m_object );
+  }
+
   using base::valid;
 
 protected:
@@ -180,7 +194,7 @@ protected:
     base::m_object = nullptr;
   }
 
-  using base::m_ptr;
+  using base::m_object;
   inline static Deleter m_delete {};
 };
 

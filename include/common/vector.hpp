@@ -80,9 +80,6 @@ public:
   void push_back( T&& item );
 
   template<typename... Args>
-  void emplace_back( Args&&... args );
-
-  template<typename... Args>
   reference emplace_back( Args&&... args );
 
   void pop_back();
@@ -416,18 +413,6 @@ typename Vector<T>::iterator Vector<T>::erase( const_iterator first,
   std::copy( last, end() - last, first );
 
   return end();
-}
-
-template<typename T>
-template<typename... Args>
-void Vector<T>::emplace_back( Args&&... args )
-{
-  m_size++;
-
-  if ( size() > capacity() )
-    reserve( m_capacity + 1 );
-
-  ql::construct_at( m_items + m_size - 1, args... );
 }
 
 template<typename T>

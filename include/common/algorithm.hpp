@@ -8,17 +8,17 @@
 namespace ql
 {
 
-auto min( auto lhs, auto rhs )
+constexpr auto min( auto lhs, auto rhs )
 {
   return lhs > rhs ? rhs : lhs;
 }
 
-auto max( auto lhs, auto rhs )
+constexpr auto max( auto lhs, auto rhs )
 {
   return lhs < rhs ? rhs : lhs;
 }
 
-auto clamp( auto value, auto min, auto max )
+constexpr auto clamp( auto value, auto min, auto max )
 {
   if ( value < min )
     return min;
@@ -28,7 +28,7 @@ auto clamp( auto value, auto min, auto max )
     return value;
 }
 
-void swap( auto& lhs, auto& rhs )
+constexpr void swap( auto& lhs, auto& rhs )
 {
   auto tmp = lhs;
   lhs      = rhs;
@@ -36,7 +36,7 @@ void swap( auto& lhs, auto& rhs )
 }
 
 template<typename Input, typename Output>
-Output copy( Input first, Input last, Output output )
+constexpr Output copy( Input first, Input last, Output output )
 {
   using type = decltype( output );
   if constexpr ( std::is_trivially_copyable_v<type> )
@@ -58,7 +58,7 @@ Output copy( Input first, Input last, Output output )
 }
 
 template<typename Input, typename Output>
-Output copy_n( Input input, std::size_t count, Output output )
+constexpr Output copy_n( Input input, std::size_t count, Output output )
 {
   return ql::copy( input, input + count, output );
 }

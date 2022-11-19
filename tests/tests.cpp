@@ -3,6 +3,7 @@
 #include "common/tuple.hpp"
 #include "common/memory.hpp"
 #include "common/variant.hpp"
+#include <variant>
 
 template<std::size_t I, typename... Ts>
 static bool validate_offset( const ql::Tuple<Ts...>& t )
@@ -87,4 +88,39 @@ TEST( Variant, TypeChecking )
   variant = 1337;
   EXPECT_TRUE( variant.holds_alternative<int>() );
   EXPECT_FALSE( variant.holds_alternative<float>() );
+}
+
+TEST( Variant, Visit )
+{
+  ql::Variant<int, float> variant = 66.67f;
+
+  variant = 3;
+
+  ql::visit( ql::Overload {
+    []( int i )   { std::cout << "variant<int> = " << i << std::endl; },
+    []( float f ) { std::cout << "variant<float> = " << f << std::endl; }
+  }, variant );
+}
+
+TEST( Variant, Std )
+{
+  using variant_type = ql::Variant<int, float>;
+
+  bool b = std::variant_size_v<variant_type> == ql::variant_size_v<variant_type>;
+  EXPECT_TRUE( b );
+
+  b = std::is_same_v<std::variant_alternative_t<0, variant_type>, ql::variant_alternative_t<0, variant_type>>;
+  EXPECT_TRUE( b );
+}
+
+TEST( Variant, Match )
+{
+  ql::Variant<int, float> variant = 66.67f;
+
+  variant = 3;
+
+  ql::match( variant,
+    []( int i )   { std::cout << "variant<int> = " << i << std::endl; },
+    []( float f ) { std::cout << "variant<float> = " << f << std::endl; }
+  );
 }

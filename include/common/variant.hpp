@@ -189,3 +189,85 @@ namespace std
 
 }
 
+
+namespace ql
+{
+
+  // Base case
+  template<typename VisitorType, typename... VariantTypes, std::size_t... Indices>
+  consteval auto* create_dispatch_matrix( std::index_sequence<Indices...> )
+  {
+    struct Dispatcher
+    {
+      static constexpr auto dispatch( VisitorType visitor, VariantTypes... variants )
+      {
+        return visitor( std::get<Indices>( variants )... );
+      }
+    };
+
+    return &Dispatcher::dispatch;
+  };
+
+  template<typename VisitorType, typename... VariantTypes, std::size_t... Is, std::size_t... Js, typename... Ks>
+  consteval auto create_dispatch_matrix( std::index_sequence<Is...>, std::index_sequence<Js...>, Ks... ks
+  )
+  {
+    return ql::make_array(
+      create_dispatch_matrix<VisitorType, VariantTypes...>(
+        std::index_sequence<Is..., Js>(),
+        ks...
+      )...
+    );
+  };
+
+  template<typename VisitorType, typename... VariantTypes>
+  consteval auto get_dispatch_matrix()
+  {
+    return create_dispatch_matrix<VisitorType, VariantTypes...>(
+      std::index_sequence<>(),
+      std::make_index_sequence<variant_size_v<std::decay_t<VariantTypes>>>()...
+    );
+  }
+
+
+  template<typename T>
+  constexpr T&& at_impl( T&& element ) { return std::forward<T>( element ); }
+
+  template<typename T, typename... Indices>
+  constexpr auto&& at_impl( T&& elements, std::size_t i, Indices... indices )
+  {
+    return at_impl( std::forward<T>( elements )[i], indices... );
+  }
+
+  template<typename T, typename... Indices>
+  constexpr auto&& at( T&& elements, Indices... indices )
+  {
+    return at_impl( std::forward<T>( elements ), indices... );
+  }
+
+  template<typename F, typename... Vs>
+  constexpr auto visit( F&& f, Vs&&... variants )
+  {
+    constexpr auto dispatchMatrix = get_dispatch_matrix<F&&, Vs&&...>();
+    auto dispatch = at( dispatchMatrix, variants.index()... );
+    return dispatch( std::forward<F>( f ), std::forward<Vs>( variants )... );
+  }
+
+
+  template<typename... Ts>
+  struct Overload : Ts...
+  {
+    using Ts::operator()...;
+  };
+
+  template<typename... Ts>
+  Overload( Ts... ) -> Overload<Ts...>;
+
+  template<typename V, typename... Fs>
+  constexpr auto match( V&& v, Fs&&... fs )
+  {
+    return ql::visit( ql::Overload { fs... }, v );
+  }
+
+}
+

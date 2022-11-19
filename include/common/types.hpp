@@ -2,9 +2,17 @@
 #include <concepts>
 #include <cstddef>
 #include <type_traits>
+#include <utility>
 
 namespace ql
 {
+
+template<typename T>
+struct type_identity
+{
+  using type = T;
+};
+
 
 template<typename... Ts>
 struct parameter_pack
@@ -50,7 +58,7 @@ using argument_types_t = typename callable_type<T>::argument_types;
 template<typename T, typename... Ts>
 consteval auto get_first_type( parameter_pack<T, Ts...> )
 {
-  return std::type_identity<T>();
+  return type_identity<T>();
 }
 
 template<std::size_t N, std::size_t I, typename T, typename... Ts>
@@ -68,7 +76,7 @@ consteval auto remove_n_types( parameter_pack<T, Ts...> )
 }
 
 template<typename T>
-consteval bool is_void( std::type_identity<T> )
+consteval bool is_void( type_identity<T> )
 {
   return std::is_same_v<T, void>;
 }
@@ -127,7 +135,7 @@ consteval auto get_nth_type( parameter_pack<Ts...> p )
 template<typename T>
 consteval auto get_largest_type( parameter_pack<T> )
 {
-  return std::type_identity<T>();
+  return type_identity<T>();
 }
 
 template<typename T, typename U, typename... Ts>
@@ -144,20 +152,22 @@ consteval auto get_largest_type( parameter_pack<T, U, Ts...> )
 }
 
 template<typename T>
-consteval std::size_t type_size( std::type_identity<T> )
+consteval std::size_t type_size( type_identity<T> )
 {
   return sizeof( T );
 }
 
+
 template<typename... Ts>
-consteval auto get_largest_type_size( parameter_pack<Ts...> p )
+consteval auto get_largest_type_size()
 {
-  return type_size( get_largest_type( p ) );
+  return type_size( get_largest_type( parameter_pack<Ts...>() ) );
 }
+
 
 // Returns the index of a type from an array of unique types
 template<std::size_t I, typename T, typename U, typename... Ts>
-consteval std::size_t get_index_from_type( parameter_pack<U, Ts...> p )
+consteval std::size_t get_index_for_type( parameter_pack<U, Ts...> p )
 {
   if constexpr ( std::is_same_v<T, U> )
   {
@@ -165,12 +175,12 @@ consteval std::size_t get_index_from_type( parameter_pack<U, Ts...> p )
   }
   else
   {
-    return get_index_from_type<I + 1, T>( parameter_pack<Ts...>() );
+    return get_index_for_type<I + 1, T>( parameter_pack<Ts...>() );
   }
 }
 
 template<typename T, typename U, typename... Ts>
-consteval std::size_t get_index_from_type( parameter_pack<U, Ts...> p )
+consteval std::size_t get_index_for_type( parameter_pack<U, Ts...> p )
 {
   if constexpr ( std::is_same_v<T, U> )
   {
@@ -178,45 +188,21 @@ consteval std::size_t get_index_from_type( parameter_pack<U, Ts...> p )
   }
   else
   {
-    return get_index_from_type<1, T>( parameter_pack<Ts...>() );
+    return get_index_for_type<1, T>( parameter_pack<Ts...>() );
   }
 }
 
 template<std::size_t I, typename... Ts>
-consteval auto get_type_from_index( parameter_pack<Ts...> p )
+consteval auto get_type_for_index()
 {
-  return get_nth_type<I>( p );
-}
-
-template<typename... Ts>
-consteval std::size_t get_parameter_pack_size( parameter_pack<Ts...> )
-{
-  return sizeof...( Ts );
+  return get_nth_type<I>( parameter_pack<Ts...>() );
 }
 
 template<typename T, typename... Ts>
-consteval auto next_type( parameter_pack<T, Ts...> )
-{
-  return parameter_pack<Ts...>();
-}
+static constexpr std::size_t index_for_type_v = get_index_for_type<T>( parameter_pack<Ts...>() );
 
-template<typename T, typename... Ts>
-consteval auto get_type( parameter_pack<T, Ts...> )
-{
-  return std::type_identity<T>();
-}
-
-template<std::size_t I, std::size_t... Is>
-consteval auto next_index( std::index_sequence<I, Is...> )
-{
-  return std::index_sequence<Is...>();
-}
-
-template<std::size_t I, std::size_t... Is>
-consteval std::size_t get_index( std::index_sequence<I, Is...> )
-{
-  return I;
-}
+template<std::size_t I, typename... Ts>
+using type_for_index_t = typename decltype( get_type_for_index<I, Ts...>() )::type;
 
 template<typename T, typename... Ts>
 concept is_any_of = ( std::same_as<T, Ts> || ... );

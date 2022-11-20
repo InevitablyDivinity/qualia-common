@@ -3,6 +3,7 @@
 #include "common/tuple.hpp"
 #include "common/memory.hpp"
 #include "common/variant.hpp"
+#include "common/vector.hpp"
 #include <variant>
 
 template<std::size_t I, typename... Ts>
@@ -88,6 +89,27 @@ TEST( Variant, TypeChecking )
   variant = 1337;
   EXPECT_TRUE( variant.holds_alternative<int>() );
   EXPECT_FALSE( variant.holds_alternative<float>() );
+}
+
+TEST( Vector, Reallocation )
+{
+  struct MoveableObject
+  {
+      MoveableObject() = default;
+      MoveableObject( MoveableObject&& ) noexcept {}
+      MoveableObject* ptr = this;
+  };
+
+  ql::Vector<MoveableObject> v;
+  for ( int i = 0; i < 10; i++ )
+  {
+    v.emplace_back();
+  }
+
+  for ( MoveableObject& s: v )
+  {
+    EXPECT_NE( s.ptr , &s );
+  }
 }
 
 TEST( Variant, Visit )

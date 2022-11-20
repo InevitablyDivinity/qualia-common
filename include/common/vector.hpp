@@ -2,16 +2,16 @@
 #include "common/algorithm.hpp"
 #include "common/memory.hpp"
 #include "common/utility.hpp"
-#include <cstdint>
-#include <cstdlib>
-#include <cstring>
+#include "common/allocator.hpp"
+#include <cstddef>
 #include <initializer_list>
 #include <type_traits>
+#include <algorithm>
 
 namespace ql
 {
 
-template<typename T>
+template<typename T, typename Allocator = ql::Allocator<T>>
 class Vector
 {
 public:
@@ -115,136 +115,147 @@ private:
 
   void destruct();
 
-  const static std::size_t m_minimumAllocation = 4;
+  Allocator m_allocator;
 
   T*          m_items    = nullptr;
   std::size_t m_size     = 0;
   std::size_t m_capacity = 0;
 };
 
-template<typename T>
-Vector<T>::Vector( std::size_t size )
+template<typename T, typename Allocator>
+Vector<T, Allocator>::Vector( std::size_t size )
 {
   resize( size );
 }
 
-template<typename T>
+template<typename T, typename Allocator>
 template<std::size_t N>
-Vector<T>::Vector( const T ( &items )[ N ] )
+Vector<T, Allocator>::Vector( const T ( &items )[ N ] )
 {
   assign( items );
 }
 
-template<typename T>
-Vector<T>::Vector( std::initializer_list<T> items )
+template<typename T, typename Allocator>
+Vector<T, Allocator>::Vector( std::initializer_list<T> items )
 {
   assign( items );
 }
 
-template<typename T>
-Vector<T>::Vector( const Vector& other )
+template<typename T, typename Allocator>
+Vector<T, Allocator>::Vector( const Vector& other )
 {
   assign( other );
 }
 
-template<typename T>
-Vector<T>::Vector( Vector&& other )
+template<typename T, typename Allocator>
+Vector<T, Allocator>::Vector( Vector&& other )
 {
   assign( other );
 }
 
-template<typename T>
-Vector<T>::Vector( const T* items, std::size_t size )
+template<typename T, typename Allocator>
+Vector<T, Allocator>::Vector( const T* items, std::size_t size )
 {
   assign( items, size );
 }
 
-template<typename T>
-Vector<T>::~Vector()
+template<typename T, typename Allocator>
+Vector<T, Allocator>::~Vector()
 {
   if ( m_items != nullptr )
     destruct();
 }
 
-template<typename T>
+template<typename T, typename Allocator>
 template<std::size_t N>
-void Vector<T>::assign( const type ( &items )[ N ] )
+void Vector<T, Allocator>::assign( const type ( &items )[ N ] )
 {
   assign( items, N );
 }
 
-template<typename T>
-void Vector<T>::assign( std::initializer_list<type> items )
+template<typename T, typename Allocator>
+void Vector<T, Allocator>::assign( std::initializer_list<type> items )
 {
   assign( items.begin(), items.size() );
 }
 
-template<typename T>
-void Vector<T>::assign( const Vector& other )
+template<typename T, typename Allocator>
+void Vector<T, Allocator>::assign( const Vector& other )
 {
   assign( other.begin(), other.size() );
 }
 
-template<typename T>
-void Vector<T>::assign( Vector&& other )
+template<typename T, typename Allocator>
+void Vector<T, Allocator>::assign( Vector&& other )
 {
   ql::swap( m_size, other.m_size );
   ql::swap( m_items, other.m_items );
   ql::swap( m_capacity, other.m_capacity );
 }
 
-template<typename T>
-void Vector<T>::assign( const type* items, std::size_t size )
+template<typename T, typename Allocator>
+void Vector<T, Allocator>::assign( const type* items, std::size_t size )
 {
   m_size = size;
   reserve( m_size );
   ql::copy_n( items, m_size, m_items );
 }
 
-template<typename T>
-void Vector<T>::reserve( std::size_t capacity )
+template<typename T, typename Allocator>
+void Vector<T, Allocator>::reserve( std::size_t capacity )
 {
   if ( capacity > m_capacity )
   {
-    m_capacity =
-      capacity + m_minimumAllocation - ( capacity % m_minimumAllocation );
-    std::size_t bytes = m_capacity * sizeof( T );
+    auto result = m_allocator.allocate_at_least( capacity );
 
-    m_items = reinterpret_cast<T*>( std::realloc( m_items, bytes ) );
+    if ( m_items != nullptr )
+    {
+      std::uninitialized_move( begin(), end(), result.ptr );
+      m_allocator.deallocate( m_items, m_capacity );
+    }
+
+    m_capacity = result.size;
+    m_items = result.ptr;
   }
 }
 
-template<typename T>
-void Vector<T>::shrink_to_fit()
+template<typename T, typename Allocator>
+void Vector<T, Allocator>::shrink_to_fit()
 {
   if ( m_capacity > m_size )
   {
-    m_capacity        = m_size;
-    std::size_t bytes = m_capacity * sizeof( T );
+    type* ptr = m_allocator.allocate( m_size );
 
-    m_items = reinterpret_cast<T*>( std::realloc( m_items, bytes ) );
+    if ( m_items != nullptr )
+    {
+      std::uninitialized_move( begin(), end(), ptr );
+      m_allocator.deallocate( m_items, m_capacity );
+    }
+
+    m_items = ptr;
+    m_capacity = m_size;
   }
 }
 
-template<typename T>
-void Vector<T>::resize( std::size_t count )
+template<typename T, typename Allocator>
+void Vector<T, Allocator>::resize( std::size_t count )
 {
   if ( count < m_size )
   {
     ql::destroy_n( m_items, m_size - count );
+    m_size = count;
     shrink_to_fit();
   }
   else if ( count > m_size )
   {
     reserve( count );
     ql::default_construct_n( m_items + m_size, count - m_size );
+    m_size = count;
   }
-
-  m_size = count;
 }
 
-template<typename T>
-void Vector<T>::push_back( const type& item )
+template<typename T, typename Allocator>
+void Vector<T, Allocator>::push_back( const type& item )
 {
   m_size++;
 
@@ -254,8 +265,8 @@ void Vector<T>::push_back( const type& item )
   back() = item;
 }
 
-template<typename T>
-void Vector<T>::push_back( type&& item )
+template<typename T, typename Allocator>
+void Vector<T, Allocator>::push_back( type&& item )
 {
   m_size++;
 
@@ -265,9 +276,9 @@ void Vector<T>::push_back( type&& item )
   back() = ql::move( item );
 }
 
-template<typename T>
+template<typename T, typename Allocator>
 template<std::size_t N>
-Vector<T>& Vector<T>::operator=( const type ( *items )[ N ] )
+Vector<T, Allocator>& Vector<T, Allocator>::operator=( const type ( *items )[ N ] )
 {
   if ( m_items != nullptr )
     destruct();
@@ -276,8 +287,8 @@ Vector<T>& Vector<T>::operator=( const type ( *items )[ N ] )
   return *this;
 }
 
-template<typename T>
-Vector<T>& Vector<T>::operator=( std::initializer_list<type> items )
+template<typename T, typename Allocator>
+Vector<T, Allocator>& Vector<T, Allocator>::operator=( std::initializer_list<type> items )
 {
   if ( m_items != nullptr )
     destruct();
@@ -286,8 +297,8 @@ Vector<T>& Vector<T>::operator=( std::initializer_list<type> items )
   return *this;
 }
 
-template<typename T>
-Vector<T>& Vector<T>::operator=( const Vector& rhs )
+template<typename T, typename Allocator>
+Vector<T, Allocator>& Vector<T, Allocator>::operator=( const Vector& rhs )
 {
   if ( *this == rhs )
     return *this;
@@ -299,8 +310,8 @@ Vector<T>& Vector<T>::operator=( const Vector& rhs )
   return *this;
 }
 
-template<typename T>
-Vector<T>& Vector<T>::operator=( Vector&& rhs )
+template<typename T, typename Allocator>
+Vector<T, Allocator>& Vector<T, Allocator>::operator=( Vector&& rhs )
 {
   if ( *this == rhs )
     return *this;
@@ -312,8 +323,8 @@ Vector<T>& Vector<T>::operator=( Vector&& rhs )
   return *this;
 }
 
-template<typename T>
-typename Vector<T>::iterator Vector<T>::insert( const_iterator pos,
+template<typename T, typename Allocator>
+typename Vector<T, Allocator>::iterator Vector<T, Allocator>::insert( const_iterator pos,
                                                 const T&       value )
 {
   if ( pos <= begin() || pos > end() )
@@ -330,8 +341,8 @@ typename Vector<T>::iterator Vector<T>::insert( const_iterator pos,
   return &m_items[ m_size - 1 ];
 }
 
-template<typename T>
-typename Vector<T>::iterator Vector<T>::insert( const_iterator pos, T&& value )
+template<typename T, typename Allocator>
+typename Vector<T, Allocator>::iterator Vector<T, Allocator>::insert( const_iterator pos, T&& value )
 {
   if ( pos <= begin() || pos > end() )
     return end();
@@ -347,33 +358,33 @@ typename Vector<T>::iterator Vector<T>::insert( const_iterator pos, T&& value )
   return &m_items[ m_size - 1 ];
 }
 
-template<typename T>
-typename Vector<T>::iterator
-Vector<T>::insert( const_iterator pos, std::size_t count, const T& value )
+template<typename T, typename Allocator>
+typename Vector<T, Allocator>::iterator
+Vector<T, Allocator>::insert( const_iterator pos, std::size_t count, const T& value )
 {
   for ( std::size_t i = 0; i < count; i++ )
     insert( pos + i, value );
 }
 
-template<typename T>
-typename Vector<T>::iterator Vector<T>::insert( const_iterator pos,
+template<typename T, typename Allocator>
+typename Vector<T, Allocator>::iterator Vector<T, Allocator>::insert( const_iterator pos,
                                                 iterator first, iterator last )
 {
   for ( iterator i = first; i != last; i++ )
     insert( pos + i - first, *i );
 }
 
-template<typename T>
-typename Vector<T>::iterator
-Vector<T>::insert( const_iterator pos, std::initializer_list<type> list )
+template<typename T, typename Allocator>
+typename Vector<T, Allocator>::iterator
+Vector<T, Allocator>::insert( const_iterator pos, std::initializer_list<type> list )
 {
   for ( std::size_t i = 0; i < list.size(); i++ )
     insert( pos + i, list[ i ] );
 }
 
-template<typename T>
+template<typename T, typename Allocator>
 template<typename... Args>
-typename Vector<T>::iterator Vector<T>::emplace( const_iterator pos,
+typename Vector<T, Allocator>::iterator Vector<T, Allocator>::emplace( const_iterator pos,
                                                  Args&&... args )
 {
   if ( pos <= begin() || pos > end() )
@@ -389,8 +400,8 @@ typename Vector<T>::iterator Vector<T>::emplace( const_iterator pos,
   return ql::construct_at( pos - 1, args... );
 }
 
-template<typename T>
-typename Vector<T>::iterator Vector<T>::erase( const_iterator pos )
+template<typename T, typename Allocator>
+typename Vector<T, Allocator>::iterator Vector<T, Allocator>::erase( const_iterator pos )
 {
   m_size--;
 
@@ -400,8 +411,8 @@ typename Vector<T>::iterator Vector<T>::erase( const_iterator pos )
   return end();
 }
 
-template<typename T>
-typename Vector<T>::iterator Vector<T>::erase( const_iterator first,
+template<typename T, typename Allocator>
+typename Vector<T, Allocator>::iterator Vector<T, Allocator>::erase( const_iterator first,
                                                const_iterator last )
 {
   if ( first == last )
@@ -410,14 +421,14 @@ typename Vector<T>::iterator Vector<T>::erase( const_iterator first,
   m_size -= last - first;
 
   ql::destroy( first, last );
-  std::copy( last, end() - last, first );
+  ql::copy( last, end() - last, first );
 
   return end();
 }
 
-template<typename T>
+template<typename T, typename Allocator>
 template<typename... Args>
-typename Vector<T>::reference Vector<T>::emplace_back( Args&&... args )
+typename Vector<T, Allocator>::reference Vector<T, Allocator>::emplace_back( Args&&... args )
 {
   m_size++;
 
@@ -427,26 +438,26 @@ typename Vector<T>::reference Vector<T>::emplace_back( Args&&... args )
   return *ql::construct_at( m_items + m_size - 1, args... );
 }
 
-template<typename T>
-void Vector<T>::pop_back()
+template<typename T, typename Allocator>
+void Vector<T, Allocator>::pop_back()
 {
   m_size--;
   ql::destroy_at( m_items + m_size );
 }
 
-template<typename T>
-void Vector<T>::swap( Vector& other )
+template<typename T, typename Allocator>
+void Vector<T, Allocator>::swap( Vector& other )
 {
   ql::swap( m_items, other.m_items );
   ql::swap( m_size, other.m_size );
   ql::swap( m_capacity, other.m_capacity );
 }
 
-template<typename T>
-void Vector<T>::destruct()
+template<typename T, typename Allocator>
+void Vector<T, Allocator>::destruct()
 {
   ql::destroy( begin(), end() );
-  std::free( m_items );
+  m_allocator.deallocate( m_items, m_size );
 
   m_items    = nullptr;
   m_size     = 0;

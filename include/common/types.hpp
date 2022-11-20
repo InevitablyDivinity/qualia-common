@@ -19,6 +19,7 @@ struct parameter_pack
 {
 };
 
+
 template<typename T>
 struct function_prototype
 {
@@ -56,7 +57,16 @@ template<typename T>
 using argument_types_t = typename callable_type<T>::argument_types;
 
 template<typename T, typename... Ts>
-consteval auto get_first_type( parameter_pack<T, Ts...> )
+struct current_type
+{
+  using type = T;
+};
+
+template<typename T, typename... Ts>
+using current_type_t = typename current_type<T>::type;
+
+template<typename T, typename... Ts>
+consteval auto get_current_type( parameter_pack<T, Ts...> )
 {
   return type_identity<T>();
 }
@@ -73,12 +83,6 @@ consteval auto remove_n_types( parameter_pack<T, Ts...> )
     static_assert( sizeof...( Ts ) != 0 );
     return remove_n_types<N, I + 1>( parameter_pack<Ts...>() );
   }
-}
-
-template<typename T>
-consteval bool is_void( type_identity<T> )
-{
-  return std::is_same_v<T, void>;
 }
 
 template<std::size_t N, typename T, typename... Ts>
@@ -118,7 +122,7 @@ consteval auto get_n_types( parameter_pack<T, Ts...> p )
   }
   else if constexpr ( N == 1 )
   {
-    return parameter_pack<typename decltype( get_first_type( p ) )::type>();
+    return parameter_pack<T>();
   }
   else
   {
@@ -129,7 +133,7 @@ consteval auto get_n_types( parameter_pack<T, Ts...> p )
 template<std::size_t I, typename... Ts>
 consteval auto get_nth_type( parameter_pack<Ts...> p )
 {
-  return get_first_type( remove_n_types<I>( p ) );
+  return get_current_type( remove_n_types<I>( p ) );
 }
 
 template<typename T>
@@ -149,19 +153,6 @@ consteval auto get_largest_type( parameter_pack<T, U, Ts...> )
   {
     return get_largest_type( parameter_pack<U, Ts...>() );
   }
-}
-
-template<typename T>
-consteval std::size_t type_size( type_identity<T> )
-{
-  return sizeof( T );
-}
-
-
-template<typename... Ts>
-consteval auto get_largest_type_size()
-{
-  return type_size( get_largest_type( parameter_pack<Ts...>() ) );
 }
 
 

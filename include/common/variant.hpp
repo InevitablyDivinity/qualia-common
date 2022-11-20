@@ -79,9 +79,7 @@ namespace ql
 
       if constexpr ( std::is_class_v<type> && std::is_destructible_v<type> )
       {
-        m_destructor = [this]
-        () -> void
-        {
+        m_destructor = [this]() {
           type* ptr = reinterpret_cast<type*>( m_object );
           destroy_at( ptr );
         };
@@ -135,7 +133,7 @@ namespace ql
       }
     }
 
-    std::byte m_object[get_largest_type_size<Ts...>()];
+    std::byte m_object[std::max( { alignof( Ts )... } )];
     ql::Function<void()> m_destructor;
     std::size_t m_typeIndex;
 

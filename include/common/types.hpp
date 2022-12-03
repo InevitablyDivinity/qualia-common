@@ -198,4 +198,34 @@ using type_for_index_t = typename decltype( get_type_for_index<I, Ts...>() )::ty
 template<typename T, typename... Ts>
 concept is_any_of = ( std::same_as<T, Ts> || ... );
 
+
+template<typename T, typename... Ts>
+concept is_convertible_to_any_of = ( std::convertible_to<T, Ts> || ... );
+
+template<typename T>
+struct is_function_pointer
+{
+  static constexpr bool value = std::is_invocable_v<std::remove_cvref_t<T>>
+    && std::is_pointer_v<std::remove_cvref_t<T>>;
+};
+
+template<typename T>
+inline constexpr bool is_function_pointer_v = is_function_pointer<T>::value;
+
+template<typename T>
+concept function_pointer = is_function_pointer_v<T>;
+
+template<typename T>
+struct is_function_object
+{
+  static constexpr bool value = std::is_class_v<std::remove_cvref_t<T>>
+    && std::is_invocable_v<std::remove_cvref_t<T>>;
+};
+
+template<typename T>
+inline constexpr bool is_function_object_v = is_function_object<T>::value;
+
+template<typename T>
+concept function_object = is_function_object_v<T>;
+
 } // namespace ql

@@ -12,72 +12,15 @@ namespace ql
 using std::size_t;
 using byte = std::uint8_t;
 
-// Correct implementation of addressof()
-// requires compiler support.
+// Many of the functions below are just noexcept wrappers
+// to std:: functions that can't be properly implemented
+// without compiler support.
 using std::addressof;
-
-inline constexpr void* voidify( auto& object )
-{
-  return const_cast<void*>( static_cast<const volatile void*>( addressof( object ) ) );
-}
-
-template<typename InputIterator, typename ForwardIterator>
-constexpr ForwardIterator uninitialized_copy( InputIterator first, InputIterator last, ForwardIterator out ) noexcept
-{
-  return std::uninitialized_copy( first, last, out );
-}
-
-template<typename InputIterator, typename ForwardIterator>
-constexpr ForwardIterator uninitialized_copy_n( InputIterator first, std::size_t size, ForwardIterator out ) noexcept
-{
-  return std::uninitialized_copy_n( first, size, out );
-}
-
-template<typename InputIterator, typename ForwardIterator>
-constexpr ForwardIterator uninitialized_move( InputIterator first, InputIterator last, ForwardIterator out ) noexcept
-{
-  return std::uninitialized_move( first, last, out );
-}
-
-template<typename InputIterator, typename ForwardIterator>
-constexpr ForwardIterator uninitialized_move_n( InputIterator first, std::size_t size, ForwardIterator out ) noexcept
-{
-  return std::uninitialized_move_n( first, size, out );
-}
-
-template<typename ForwardIterator, typename T>
-constexpr ForwardIterator uninitialized_fill( ForwardIterator first, ForwardIterator last, const T& value ) noexcept
-{
-  return std::uninitialized_fill( first, last, value );
-}
-
-template<typename ForwardIterator, typename T>
-constexpr ForwardIterator uninitialized_fill_n( ForwardIterator first, std::size_t size, const T& value ) noexcept
-{
-  return std::uninitialized_fill_n( first, size, value );
-}
 
 template<typename T, typename... Args>
 constexpr T* construct_at( T* ptr, Args&&... args ) noexcept
 {
-  return std::construct_at( ptr, args... );
-}
-
-template<typename ForwardIterator>
-constexpr void default_construct( ForwardIterator first, ForwardIterator last )
-{
-  using value_type = std::remove_cv_t<ForwardIterator>;
-
-  for ( ForwardIterator i = first; i != last; i++ )
-  {
-    ::new ( voidify( *i ) ) value_type();
-  }
-}
-
-template<typename ForwardIterator>
-constexpr void default_construct_n( ForwardIterator first, std::size_t count )
-{
-  default_construct( first, first + count );
+  return std::construct_at( ptr, forward<Args>( args )... );
 }
 
 template<typename T>
@@ -107,6 +50,74 @@ template<typename ForwardIterator>
 constexpr void destroy_n( ForwardIterator first, std::size_t count )
 {
   destroy( first, first + count );
+}
+
+template<typename InputIterator, typename OutputIterator>
+constexpr OutputIterator uninitialized_copy( InputIterator first, InputIterator last, OutputIterator out )
+{
+  while ( first != last )
+  {
+    construct_at( out, *first );
+    first++, out++;
+  }
+
+  return out;
+}
+
+template<typename InputIterator, typename OutputIterator>
+constexpr OutputIterator uninitialized_copy_n( InputIterator first, std::size_t count, OutputIterator out )
+{
+  return uninitialized_copy( first, first + count, out );
+}
+
+template<typename ForwardIterator, typename T>
+constexpr void uninitialized_fill( ForwardIterator first, ForwardIterator last, const T& value )
+{
+  while ( first != last )
+  {
+    construct_at( first, value );
+    first++;
+  }
+}
+
+template<typename ForwardIterator, typename T>
+constexpr void uninitialized_fill_n( ForwardIterator input, std::size_t count, const T& value )
+{
+  uninitialized_fill( input, input + count, value );
+}
+
+template<typename InputIterator, typename OutputIterator>
+constexpr OutputIterator uninitialized_move( InputIterator first, InputIterator last, OutputIterator out )
+{
+  while ( first != last )
+  {
+    construct_at( out, move( *first ) );
+    first++, out++;
+  }
+
+  return out;
+}
+
+template<typename InputIterator, typename OutputIterator>
+constexpr OutputIterator uninitialized_move_n( InputIterator input, std::size_t count, OutputIterator out )
+{
+  return uninitialized_move( input, input + count, out );
+}
+
+template<typename ForwardIterator>
+constexpr void uninitialized_default_construct( ForwardIterator first, ForwardIterator last )
+{
+  while ( first != last )
+  {
+    construct_at( first );
+    first++;
+  }
+}
+
+template<typename ForwardIterator, typename T>
+constexpr void uninitialized_default_construct_n( ForwardIterator input, std::size_t count )
+{
+  uninitialized_fill( input, input + count );
 }
 
 template<typename T>

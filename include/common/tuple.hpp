@@ -69,13 +69,13 @@ struct std::tuple_element<I, ql::Tuple<Ts...>>
 namespace std
 {
   template<std::size_t I, typename... Ts>
-  auto& get( ql::Tuple<Ts...>& t )
+  constexpr auto& get( ql::Tuple<Ts...>& t )
   {
     return t.template get<I>();
   }
 
   template<std::size_t I, typename... Ts>
-  const auto& get( const ql::Tuple<Ts...>& t )
+  constexpr const auto& get( const ql::Tuple<Ts...>& t )
   {
     return t.template get<I>();
   }

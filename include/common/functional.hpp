@@ -1,15 +1,15 @@
 #pragma once
-#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <utility>
+#include "common/memory.hpp"
 #include "common/types.hpp"
 
 namespace ql
 {
 
-template<typename T>
+template<typename F>
 class Function;
 
 template<typename R, typename... Args>
@@ -19,143 +19,170 @@ public:
 
   using return_type = R;
   using argument_types = parameter_pack<Args...>;
-  using pointer = R (*)(Args...);
+  using pointer = R (*)( Args... );
 
-  Function() = default;
-
-  Function( auto&& callable ) { assign( callable ); }
-  Function( pointer callable ) { assign( callable ); }
-  Function( std::nullptr_t ) { assign( std::nullptr_t() ); }
-
-  ~Function()
+  constexpr Function( auto&& f )
   {
-    if ( valid() )
-      destruct();
+    assign( f );
   }
 
-  Function& operator=( auto&& callable )
+  constexpr Function( std::nullptr_t )
   {
-    if ( valid() )
-      destruct();
+    assign( std::nullptr_t() );
+  }
 
-    assign( callable );
+  constexpr ~Function()
+  {
+    destruct();
+  }
+
+  constexpr Function& operator=( auto&& f )
+  {
+    destruct();
+    assign( f );
     return *this;
   }
 
-  Function& operator=( std::nullptr_t )
+  constexpr Function operator=( std::nullptr_t )
   {
-    if ( valid() )
-      destruct();
-
+    destruct();
     assign( std::nullptr_t() );
     return *this;
   }
 
-  R operator()( Args&&... args )
+  constexpr R operator()( Args&&... args ) const
   {
-    return m_callable->call( std::forward( args )... );
-  }
-
-  bool valid() const { return m_callable != nullptr; }
-  operator bool() const { return valid(); }
-
-  pointer target() { return reinterpret_cast<pointer>( m_callable->target() ); }
-
-  void assign( auto&& callable )
-  {
-    using InternalType = decltype( callable );
-    using Wrapper      = Callable<InternalType>;
-
-    if ( alignof( InternalType ) <= alignof( std::max_align_t ) )
-      m_callable = new ( &m_stackBuffer ) Wrapper( callable );
+    if ( m_isFunctionPtr )
+    {
+      return m_ptr( forward( args )... );
+    }
     else
-      m_callable = new Wrapper( callable );
+    {
+      return m_callable( forward( args )... );
+    }
   }
 
-  void assign( std::nullptr_t )
+  constexpr pointer target() const { return m_callable->target(); }
+
+private:
+
+  constexpr void assign( auto&& f )
+  {
+    using type = std::remove_cvref_t<decltype( f )>;
+
+    if constexpr ( std::is_pointer_v<type> || std::is_convertible_v<type, pointer> )
+    {
+      m_isFunctionPtr = true;
+      m_ptr = f;
+    }
+    else
+    {
+      m_isFunctionPtr = false;
+
+      if constexpr ( sizeof( type ) > sizeof( std::max_align_t ) )
+      {
+        m_callable = new Callable<type>( f );
+      }
+      else
+      {
+        m_callable = new ( m_stackBuffer ) Callable<type>( f );
+      }
+    }
+  }
+
+  constexpr void assign( std::nullptr_t )
   {
     m_callable = nullptr;
   }
 
-private:
-
-  void destruct()
+  constexpr void destruct()
   {
-    if ( m_callable )
+    if ( !std::is_constant_evaluated() )
     {
-      // If we're using SSBO, then destroy - don't delete.
-      if ( std::uintptr_t( m_callable ) == std::uintptr_t( &m_stackBuffer ) )
-        m_callable->~ICallable();
-      else
-        delete m_callable;
+      if ( !m_isFunctionPtr )
+      {
+        if ( m_callable->size() > sizeof( std::max_align_t ) )
+        {
+          delete m_callable;
+        }
+        else
+        {
+          destroy_at( m_callable );
+        }
+      }
     }
   }
 
-  // Use an abstract callable interface
-  // to copy lambda states (captures)
   class ICallable
   {
   public:
 
-    virtual ~ICallable()           = default;
-    virtual R call( Args&&... args ) = 0;
-    virtual void* target() = 0;
+    constexpr virtual ~ICallable() = default;
+    constexpr virtual R operator()( Args&&... args ) = 0;
+    constexpr virtual std::size_t size() const = 0;
+    constexpr virtual pointer target() const = 0;
 
   };
 
-  template<typename T>
+  template<typename F>
   class Callable : public ICallable
   {
   public:
 
-    Callable( T&& callable ) : m_callable( callable ) {}
-
-    virtual R call( Args&&... args ) { return m_callable( args... ); }
-    virtual void* target()
+    constexpr Callable( F&& callable )
+    : m_callable( callable )
     {
-      if constexpr ( std::is_pointer_v<T> )
-        return m_callable;
+    }
+
+    constexpr virtual R operator()( Args&&... args )
+    {
+      return m_callable( forward( args )... );
+    }
+
+    constexpr virtual std::size_t size() const
+    {
+      return sizeof( F );
+    }
+
+    constexpr virtual pointer target() const
+    {
+      if constexpr ( std::is_convertible_v<F, pointer> )
+      {
+        return &m_callable;
+      }
       else
+      {
         return nullptr;
+      }
     }
 
   private:
 
-    T m_callable;
+    F m_callable;
   };
 
-  ICallable*       m_callable = nullptr;
-  std::max_align_t m_stackBuffer;
+  bool m_isFunctionPtr = false;
+
+  union
+  {
+    R ( *m_ptr )( Args... );
+    ICallable* m_callable;
+  };
+
+  byte m_stackBuffer[alignof( std::max_align_t )] = {};
+
 };
 
 template<typename R, typename... Args>
 Function( R (*)( Args... ) ) -> Function<R( Args... )>;
 
+
 template<typename T>
 struct callable_type;
-
-template<typename T> class Function;
 
 template<typename R, typename... Args>
 struct callable_type<Function<R( Args... )>> : callable_type<R( Args... )>
 {
 };
-
-void for_each( auto range, auto predicate )
-{
-  for ( auto& item : range )
-    predicate( item );
-}
-
-auto find_if( auto range, auto predicate ) -> typename decltype( range )::type*
-{
-  for ( auto& item : range )
-  {
-    if ( predicate( item ) )
-      return &item;
-  }
-
-  return nullptr;
-}
 
 } // namespace ql

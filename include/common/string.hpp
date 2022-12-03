@@ -1,6 +1,8 @@
 #pragma once
 #include "common/algorithm.hpp"
+#include "common/memory.hpp"
 #include <cstddef>
+#include <string>
 
 namespace ql
 {
@@ -12,128 +14,132 @@ public:
   using iterator       = char*;
   using const_iterator = const char*;
 
-  String() = default;
+  constexpr String() = default;
 
-  String( const char* src )
+  constexpr String( const char* src )
   {
-    if ( src != nullptr )
-      assign( src, std::strlen( src ) );
+    assign( src, std::char_traits<char>::length( src ) );
   }
 
-  String( const char* src, std::size_t size ) { assign( src, size ); }
+  constexpr String( const char* src, std::size_t size ) { assign( src, size ); }
 
-  String( const String& src ) { assign( src ); }
+  constexpr String( const String& src ) { assign( src ); }
 
-  String( String&& src ) { assign( src ); }
+  constexpr String( String&& src ) { assign( src ); }
 
-  ~String() { destruct(); }
-
-  String& operator=( const char* rhs )
+  constexpr ~String()
   {
-    if ( !empty() )
-      destruct();
+    destruct();
+  }
+
+  constexpr String& operator=( const char* rhs )
+  {
+    destruct();
 
     assign( rhs );
     return *this;
   }
 
-  String& operator=( const String& rhs )
+  constexpr String& operator=( const String& rhs )
   {
-    if ( !empty() )
-      destruct();
+    destruct();
 
     assign( rhs );
     return *this;
   }
 
-  String& operator=( String&& rhs )
+  constexpr String& operator=( String&& rhs )
   {
-    if ( !empty() )
-      destruct();
+    destruct();
 
     assign( rhs );
     return *this;
   }
 
-  bool operator==( const String& rhs ) const
+  constexpr bool operator==( const String& rhs ) const
   {
     if ( rhs.m_size != m_size )
       return false;
 
-    return std::strncmp( m_data, rhs.m_data, m_size ) == 0;
+    return std::equal( begin(), end(), rhs.begin() );
   }
 
-  bool operator==( const char* rhs ) const
+  constexpr bool operator==( const char* rhs ) const
   {
-    return std::strcmp( m_data, rhs ) == 0;
+    return std::equal( begin(), end(), rhs );
   }
 
-  std::size_t find_last_of( char c ) const
+  constexpr operator const char*() const { return m_data; }
+
+  constexpr char*       data() { return m_data; }
+  constexpr const char* data() const { return m_data; }
+  constexpr const char* c_str() const { return m_data; }
+
+  constexpr std::size_t size() const { return m_size; }
+  constexpr bool        empty() const { return m_size > 0; }
+
+  constexpr iterator       begin() { return m_data; }
+  constexpr iterator       end() { return nullptr; }
+  constexpr const_iterator begin() const { return m_data; }
+  constexpr const_iterator cbegin() const { return m_data; }
+  constexpr const_iterator end() const { return nullptr; }
+  constexpr const_iterator cend() const { return nullptr; }
+
+  constexpr void clear()
   {
-    for ( auto i = 0; i < m_size; i++ )
-    {
-      if ( m_data[ i ] == c )
-        return i;
-    }
-
-    return m_size;
-  }
-
-  operator const char*() const { return m_data; }
-
-  char*       data() { return m_data; }
-  const char* data() const { return m_data; }
-  const char* c_str() const { return m_data; }
-
-  std::size_t size() const { return m_size; }
-  bool        empty() const { return m_size > 0; }
-
-  iterator       begin() { return m_data; }
-  iterator       end() { return nullptr; }
-  const_iterator begin() const { return m_data; }
-  const_iterator cbegin() const { return m_data; }
-  const_iterator end() const { return nullptr; }
-  const_iterator cend() const { return nullptr; }
-
-  void clear()
-  {
-    if ( !empty() )
-      destruct();
-  }
-
-  void assign( const char* src, std::size_t size )
-  {
-    if ( src == nullptr )
-      return;
-
-    if ( size + 1 > alignof( std::max_align_t ) )
-      m_data = new char[ size + 1 ];
-    else
-      m_data = reinterpret_cast<char*>( &m_stackBuffer );
-
-    std::strncpy( m_data, src, size );
-    m_data[ size ] = '\0';
-    m_size         = size;
-  }
-
-  void assign( const String& src ) { assign( src.m_data, src.m_size ); }
-
-  void assign( String&& src )
-  {
-    ql::swap( m_data, src.m_data );
-    ql::swap( m_size, src.m_size );
-    ql::copy( &m_stackBuffer, &m_stackBuffer, &src.m_stackBuffer );
+    destruct();
   }
 
 private:
 
-  bool using_ssbo() const { return m_size + 1 <= alignof( std::max_align_t ); }
-
-  void destruct()
+  constexpr bool using_ssbo() const
   {
+    return m_size + 1 <= alignof( std::max_align_t );
+  }
+
+  constexpr void assign( const char* src, std::size_t size )
+  {
+    if ( src == nullptr )
+      return;
+
+    if ( std::is_constant_evaluated() )
+    {
+      m_data = const_cast<char*>( src );
+      m_size = size;
+    }
+    else
+    {
+      if ( size + 1 > alignof( std::max_align_t ) )
+        m_data = new char[ size + 1 ];
+      else
+        m_data = m_stackBuffer;
+
+      copy_n( src, size, m_data );
+      m_data[ size ] = '\0';
+      m_size         = size;
+    }
+  }
+
+  constexpr void assign( const String& src )
+  {
+    assign( src.m_data, src.m_size );
+  }
+
+  constexpr void assign( String&& src )
+  {
+    swap( m_data, src.m_data );
+    swap( m_size, src.m_size );
+  }
+
+  constexpr void destruct()
+  {
+    if ( empty() || std::is_constant_evaluated() )
+      return;
+
     if ( using_ssbo() )
     {
-      std::memset( &m_stackBuffer, 0, alignof( std::max_align_t ) );
+      uninitialized_fill_n( m_data, sizeof( std::max_align_t ), 0 );
+      //fill_memory( m_data, 0, sizeof( std::max_align_t ) );
     }
     else
     {
@@ -141,11 +147,12 @@ private:
     }
 
     m_size = 0;
+    m_data = nullptr;
   }
 
-  std::max_align_t m_stackBuffer;
-  char*            m_data = nullptr;
-  std::size_t      m_size = 0;
+  char m_stackBuffer[alignof( std::max_align_t )] = {};
+  char*       m_data = nullptr;
+  std::size_t m_size = 0;
 };
 
 /*template<typename Type>

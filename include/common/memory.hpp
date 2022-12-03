@@ -4,55 +4,107 @@
 #include <cstring>
 #include <type_traits>
 #include <concepts>
+#include <algorithm>
 
 namespace ql
 {
 
+using std::size_t;
+using byte = std::uint8_t;
+
+// Correct implementation of addressof()
+// requires compiler support.
+using std::addressof;
+
+inline constexpr void* voidify( auto& object )
+{
+  return const_cast<void*>( static_cast<const volatile void*>( addressof( object ) ) );
+}
+
+template<typename InputIterator, typename ForwardIterator>
+constexpr ForwardIterator uninitialized_copy( InputIterator first, InputIterator last, ForwardIterator out ) noexcept
+{
+  return std::uninitialized_copy( first, last, out );
+}
+
+template<typename InputIterator, typename ForwardIterator>
+constexpr ForwardIterator uninitialized_copy_n( InputIterator first, std::size_t size, ForwardIterator out ) noexcept
+{
+  return std::uninitialized_copy_n( first, size, out );
+}
+
+template<typename InputIterator, typename ForwardIterator>
+constexpr ForwardIterator uninitialized_move( InputIterator first, InputIterator last, ForwardIterator out ) noexcept
+{
+  return std::uninitialized_move( first, last, out );
+}
+
+template<typename InputIterator, typename ForwardIterator>
+constexpr ForwardIterator uninitialized_move_n( InputIterator first, std::size_t size, ForwardIterator out ) noexcept
+{
+  return std::uninitialized_move_n( first, size, out );
+}
+
+template<typename ForwardIterator, typename T>
+constexpr ForwardIterator uninitialized_fill( ForwardIterator first, ForwardIterator last, const T& value ) noexcept
+{
+  return std::uninitialized_fill( first, last, value );
+}
+
+template<typename ForwardIterator, typename T>
+constexpr ForwardIterator uninitialized_fill_n( ForwardIterator first, std::size_t size, const T& value ) noexcept
+{
+  return std::uninitialized_fill_n( first, size, value );
+}
+
 template<typename T, typename... Args>
-T* construct_at( T* dest, Args&&... args )
+constexpr T* construct_at( T* ptr, Args&&... args ) noexcept
 {
-  return new ( dest ) T( args... );
+  return std::construct_at( ptr, args... );
 }
 
 template<typename ForwardIterator>
-void default_construct( ForwardIterator first, ForwardIterator last )
+constexpr void default_construct( ForwardIterator first, ForwardIterator last )
 {
-  using traits = ql::IteratorTraits<ForwardIterator>;
-  using type   = typename traits::value_type;
+  using value_type = std::remove_cv_t<ForwardIterator>;
 
-  if constexpr ( std::is_trivially_default_constructible_v<type> )
+  for ( ForwardIterator i = first; i != last; i++ )
   {
-    std::memset( first, 0, last - first );
-  }
-  else
-  {
-    for ( ForwardIterator i = first; i != last; i++ )
-      ql::construct_at<type>( i );
+    ::new ( voidify( *i ) ) value_type();
   }
 }
 
 template<typename ForwardIterator>
-void default_construct_n( ForwardIterator first, std::size_t count )
+constexpr void default_construct_n( ForwardIterator first, std::size_t count )
 {
   default_construct( first, first + count );
 }
 
 template<typename T>
-void destroy_at( T* object )
+constexpr void destroy_at( T* object )
 {
-  if constexpr ( std::is_destructible_v<T> )
+  if constexpr ( std::is_array_v<T> )
+  {
+    destroy( std::begin( *object ), std::end( *object ) );
+  }
+  else
+  {
     object->~T();
+  }
 }
 
 template<typename ForwardIterator>
-void destroy( ForwardIterator first, ForwardIterator last )
+constexpr void destroy( ForwardIterator first, ForwardIterator last )
 {
-  for ( auto object = first; object != last; object++ )
-    destroy_at( &( *object ) );
+  while ( first != last )
+  {
+    destroy_at( addressof( *first ) );
+    first++;
+  }
 }
 
 template<typename ForwardIterator>
-void destroy_n( ForwardIterator first, std::size_t count )
+constexpr void destroy_n( ForwardIterator first, std::size_t count )
 {
   destroy( first, first + count );
 }

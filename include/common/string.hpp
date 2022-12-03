@@ -114,7 +114,7 @@ private:
       else
         m_data = m_stackBuffer;
 
-      copy_n( src, size, m_data );
+      uninitialized_copy_n( src, size, m_data );
       m_data[ size ] = '\0';
       m_size         = size;
     }
@@ -139,7 +139,6 @@ private:
     if ( using_ssbo() )
     {
       uninitialized_fill_n( m_data, sizeof( std::max_align_t ), 0 );
-      //fill_memory( m_data, 0, sizeof( std::max_align_t ) );
     }
     else
     {
@@ -154,15 +153,6 @@ private:
   char*       m_data = nullptr;
   std::size_t m_size = 0;
 };
-
-/*template<typename Type>
-std::uint64_t hash(const Type &value);
-
-template <>
-std::uint64_t hash<String>(const String &value)
-{
-  return fnv1a_hash(value.data(), value.size());
-}*/
 
 template<typename Type>
 struct hash;

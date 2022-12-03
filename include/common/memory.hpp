@@ -1,9 +1,7 @@
 #pragma once
 #include "common/algorithm.hpp"
-#include "common/iterator.hpp"
 #include "common/utility.hpp"
 #include <cstring>
-#include <cassert>
 #include <type_traits>
 #include <concepts>
 
@@ -80,77 +78,72 @@ class Ptr
 {
 public:
 
-  using type = T;
+  using element_type = std::remove_extent_t<T>;
 
   Ptr() = default;
 
-  Ptr( Ptr&& other ) { ql::swap( m_object, other.m_object ); }
-  Ptr( std::convertible_to<type*> auto ptr ) : m_object( ptr ) {}
+  Ptr( Ptr&& other ) { swap( m_object, other.m_object ); }
+  Ptr( std::convertible_to<element_type*> auto ptr ) : m_object( ptr ) {}
 
-  bool valid() const { return m_object != nullptr; }
+  element_type*       get() { return m_object; }
+  const element_type* get() const { return m_object; }
 
-  type*       get() { return m_object; }
-  const type* get() const { return m_object; }
-
-  operator type*() { return m_object; }
-  operator const type*() const { return m_object; }
+  operator element_type*() { return m_object; }
+  operator const element_type*() const { return m_object; }
 
   operator bool() const { return m_object != nullptr; }
 
   Ptr& operator=( Ptr&& other )
   {
-    ql::swap( m_object, other.m_object );
+    swap( m_object, other.m_object );
     return *this;
   }
 
-  Ptr& operator=( std::convertible_to<type*> auto ptr )
+  Ptr& operator=( std::convertible_to<element_type*> auto ptr )
   {
     m_object = ptr;
     return *this;
   }
 
-  type*    operator->() { return m_object; }
+  element_type*    operator->() { return m_object; }
   const T* operator->() const { return m_object; }
 
-  type&    operator*() { return *m_object; }
+  element_type&    operator*() { return *m_object; }
   const T& operator*() const { return *m_object; }
 
-  bool operator==( std::convertible_to<T> auto ptr ) const
+  bool operator==( std::convertible_to<element_type*> auto ptr ) const
   {
     return m_object == ptr;
   }
 
 protected:
 
-  type* m_object = nullptr;
+  element_type* m_object = nullptr;
 };
 
-template<typename T, typename Deleter = ql::default_delete<T>>
-class UniquePtr : public Ptr<std::remove_all_extents_t<T>>
+template<typename T, typename Deleter = default_delete<T>>
+class UniquePtr : public Ptr<std::remove_extent_t<T>>
 {
-  using base = Ptr<std::remove_all_extents_t<T>>;
 public:
 
-  using type = typename base::type;
+  using element_type = std::remove_extent_t<T>;
 
-  UniquePtr( type&& object )
+  UniquePtr( element_type&& object )
   {
-    base::m_object = new type( std::move( object ) );
+    m_object = new element_type( move( object ) );
   }
 
   UniquePtr( const UniquePtr& other ) { assign( other ); }
-  UniquePtr( UniquePtr&& other ) { assign( ql::move( other ) ); }
+  UniquePtr( UniquePtr&& other ) { assign( move( other ) ); }
 
   ~UniquePtr()
   {
-    if ( valid() )
-      destruct();
+    destruct();
   }
 
   UniquePtr& operator=( const UniquePtr& other )
   {
-    if ( valid() )
-      destruct();
+    destruct();
 
     assign( other );
     return *this;
@@ -158,17 +151,15 @@ public:
 
   UniquePtr& operator=( UniquePtr&& other )
   {
-    if ( valid() )
-      destruct();
+    destruct();
 
-    assign( other );
+    assign( move( other ) );
     return *this;
   }
 
-  UniquePtr& operator=( type* ptr )
+  UniquePtr& operator=( element_type* ptr )
   {
-    if ( valid() )
-      destruct();
+    destruct();
 
     assign( ptr );
     return *this;
@@ -176,60 +167,109 @@ public:
 
   void assign( const UniquePtr& other )
   {
-    m_object = new type( *other.m_object );
+    m_object = new element_type( *other.m_object );
   }
 
   void assign( UniquePtr&& other )
   {
-    ql::swap( m_object, other.m_object );
+    swap( m_object, other.m_object );
   }
-
-  using base::valid;
 
 protected:
 
   void destruct()
   {
-    m_delete( base::m_object );
-    base::m_object = nullptr;
+    if ( m_object != nullptr )
+    {
+      deleter( m_object );
+      m_object = nullptr;
+    }
   }
 
+  using base = Ptr<element_type>;
   using base::m_object;
-  inline static Deleter m_delete {};
+
+  inline static Deleter deleter;
+};
+
+class RefCount
+{
+public:
+
+  RefCount() = default;
+
+  RefCount( std::size_t n )
+  {
+    m_refCount = n;
+  }
+
+  RefCount& operator=( std::size_t n )
+  {
+    m_refCount = n;
+    return *this;
+  }
+
+  operator std::size_t() const { return m_refCount; }
+
+  bool operator==( std::size_t n ) const
+  {
+    return m_refCount == n;
+  }
+
+  RefCount& operator--(int)
+  {
+    m_refCount--;
+    return *this;
+  }
+
+  RefCount& operator++(int)
+  {
+    m_refCount++;
+    return *this;
+  }
+
+private:
+
+  std::size_t m_refCount = 0;
+
+};
+
+struct WeakStrongRefCount
+{
+  RefCount weak = 0;
+  RefCount strong = 0;
 };
 
 template<typename T, typename Deleter>
 class WeakPtr;
 
-template<typename T, typename Deleter = ql::default_delete<T>>
-class SharedPtr : public Ptr<std::remove_all_extents_t<T>>
+template<typename T, typename Deleter = default_delete<T>>
+class SharedPtr : public Ptr<std::remove_extent_t<T>>
 {
-  using base = Ptr<std::remove_all_extents_t<T>>;
-
-  friend class WeakPtr<T, Deleter>;
-
 public:
 
-  using type = typename base::type;
-  using weak_ptr_type = WeakPtr<T, Deleter>;
+  using element_type = std::remove_extent_t<T>;
+  using weak_type = WeakPtr<element_type, Deleter>;
 
   SharedPtr() = default;
 
-  SharedPtr( type&& object )
-  : m_strongRefCount( new std::size_t( 1 ) )
+  SharedPtr( element_type&& object )
   {
-    m_object = new type( std::move( object ) );
+    m_object = new element_type( move( object ) );
+    m_refCount = new WeakStrongRefCount { .weak = 0, .strong = 1 };
   }
-  SharedPtr( const weak_ptr_type& other ) { assign( other ); }
+  SharedPtr( const weak_type& other ) { assign( other ); }
   SharedPtr( const SharedPtr& other ) { assign( other ); }
-  SharedPtr( SharedPtr&& other ) { assign( other ); }
+  SharedPtr( SharedPtr&& other ) { assign( move( other ) ); }
 
-  ~SharedPtr() { destruct(); }
-
-  SharedPtr& operator=( const weak_ptr_type& other )
+  ~SharedPtr()
   {
-    if ( valid() )
-      destruct();
+    destruct();
+  }
+
+  SharedPtr& operator=( const weak_type& other )
+  {
+    destruct();
 
     assign( other );
     return *this;
@@ -237,8 +277,7 @@ public:
 
   SharedPtr& operator=( const SharedPtr& other )
   {
-    if ( valid() )
-      destruct();
+    destruct();
 
     assign( other );
     return *this;
@@ -246,113 +285,107 @@ public:
 
   SharedPtr& operator=( SharedPtr&& other )
   {
-    if ( valid() )
-      destruct();
+    destruct();
 
-    assign( other );
+    assign( move( other ) );
     return *this;
-  }
-
-  void assign( const weak_ptr_type& other )
-  {
-    if ( other.valid() )
-    {
-      m_strongRefCount = other.m_strongRefCount;
-      m_weakRefCount = other.m_weakRefCount;
-      m_object = other.m_object;
-      increment_strong_ref_count();
-    }
-  }
-
-  void assign( const SharedPtr& other )
-  {
-    if ( other.valid() )
-    {
-      m_strongRefCount = other.m_strongRefCount;
-      m_weakRefCount = other.m_weakRefCount;
-      m_object = other.m_object;
-      increment_strong_ref_count();
-    }
-  }
-
-  void assign( SharedPtr&& other )
-  {
-    ql::swap( m_object, other.m_object );
-    ql::swap( m_strongRefCount, other.m_strongRefCount );
   }
 
   std::size_t use_count() const { return strong_ref_count(); }
 
   bool unique() const { return use_count() == 1; }
 
-  bool valid() const
-  {
-    return use_count() > 0;
-  }
-
 protected:
 
-  std::size_t strong_ref_count() const { return m_strongRefCount != nullptr ? *m_strongRefCount : 0; }
-  std::size_t weak_ref_count() const { return m_strongRefCount != nullptr ? *m_strongRefCount : 0; }
+  std::size_t strong_ref_count() const { return m_refCount != nullptr ? std::size_t( m_refCount->strong ) : 0; }
+  std::size_t weak_ref_count() const { return m_refCount != nullptr ? std::size_t( m_refCount->weak ) : 0; }
 
-  void decrement_strong_ref_count()
+  void assign( const weak_type& other )
   {
-    ( *m_strongRefCount )--;
+    m_object = other.m_object;
+    m_refCount = other.m_refCount;
 
-    if ( m_weakRefCount != nullptr && weak_ref_count() == 0 )
+    if ( m_refCount != nullptr )
     {
-      delete m_strongRefCount;
-      m_strongRefCount = nullptr;
+      m_refCount->strong++;
     }
   }
 
-  void increment_strong_ref_count()
+  void assign( const SharedPtr& other )
   {
-    ( *m_strongRefCount )++;
+    m_object = other.m_object;
+    m_refCount = other.m_refCount;
+
+    if ( m_refCount != nullptr )
+    {
+      m_refCount->strong++;
+    }
+  }
+
+  void assign( SharedPtr&& other )
+  {
+    swap( m_object, other.m_object );
+    swap( m_refCount, other.m_refCount );
   }
 
   void destruct()
   {
-    if ( use_count() > 0 )
-      decrement_strong_ref_count();
-
-    if ( m_object != nullptr && use_count() == 0 )
+    if ( strong_ref_count() > 0 )
     {
-      m_delete( m_object );
-      m_object = nullptr;
+      m_refCount->strong--;
     }
+
+    if ( weak_ref_count() == 0 && strong_ref_count() == 0 )
+    {
+      if ( m_refCount != nullptr )
+      {
+        delete m_refCount;
+      }
+    }
+
+    // Delete the object
+    if ( use_count() == 0 && m_object != nullptr )
+    {
+      deleter( m_object );
+    }
+
+    m_refCount = nullptr;
+    m_object = nullptr;
   }
 
-  inline static Deleter m_delete {};
+  friend weak_type;
 
+  using base = Ptr<element_type>;
   using base::m_object;
-  std::size_t* m_strongRefCount = nullptr;
-  std::size_t* m_weakRefCount = nullptr;
+
+  WeakStrongRefCount* m_refCount = nullptr;
+  inline static Deleter deleter;
 };
 
 // SharedPtr with no ownership, doesn't affect ref count
-template<typename T, typename Deleter = ql::default_delete<T>>
-class WeakPtr : public Ptr<std::decay_t<T>>
+template<typename T, typename Deleter = default_delete<T>>
+class WeakPtr : public Ptr<std::remove_extent_t<T>>
 {
-  using base = Ptr<std::decay_t<T>>;
-
-  friend class SharedPtr<T, Deleter>;
-
 public:
 
-  using type = typename base::type;
-  using shared_ptr_type = SharedPtr<T, Deleter>;
+  using element_type = std::remove_extent_t<T>;
+  using shared_type = SharedPtr<element_type, Deleter>;
 
   WeakPtr() = default;
 
-  WeakPtr( const shared_ptr_type& other ) { assign( other ); }
+  WeakPtr( const shared_type& other ) { assign( other ); }
   WeakPtr( const WeakPtr& other ) { assign( other ); }
-  WeakPtr( WeakPtr&& other ) { assign( other ); }
+  WeakPtr( WeakPtr&& other ) { assign( move( other ) ); }
 
-  WeakPtr& operator=( const shared_ptr_type& other )
+  ~WeakPtr()
   {
-    if ( valid() )
+    if ( m_refCount != nullptr )
       destruct();
+  }
+
+  WeakPtr& operator=( const shared_type& other )
+  {
+    destruct();
 
     assign( other );
     return *this;
@@ -360,8 +393,7 @@ public:
 
   WeakPtr& operator=( const WeakPtr& other )
   {
-    if ( valid() )
-      destruct();
+    destruct();
 
     assign( other );
     return *this;
@@ -369,108 +401,93 @@ public:
 
   WeakPtr& operator=( WeakPtr&& other )
   {
-    assign( other );
+    destruct();
+
+    assign( move( other ) );
     return *this;
   }
 
-  void assign( const shared_ptr_type& other )
+  std::size_t use_count() const { return strong_ref_count(); }
+
+  bool expired() const { return use_count() == 0; }
+
+  // Acquires the resource and guarantees an
+  // extended lifetime for its usage
+  shared_type lock() const
   {
-    if ( other.valid() )
+    return expired() ? shared_type() : shared_type( *this );
+  }
+
+protected:
+
+  std::size_t strong_ref_count() const { return m_refCount != nullptr ? std::size_t( m_refCount->strong ) : 0; }
+  std::size_t weak_ref_count() const { return m_refCount != nullptr ? std::size_t( m_refCount->weak ) : 0; }
+
+  void assign( const shared_type& other )
+  {
+    m_object = other.m_object;
+    m_refCount = other.m_refCount;
+
+    if ( m_refCount != nullptr )
     {
-      m_object = other.m_object;
-      m_strongRefCount = other.m_strongRefCount;
-      m_weakRefCount = new std::size_t( 1 );
+      m_refCount->weak++;
     }
   }
 
   void assign( const WeakPtr& other )
   {
-    if ( other.valid() )
+    m_object = other.m_object;
+    m_refCount = other.m_refCount;
+
+    if ( m_refCount != nullptr )
     {
-      m_object = other.m_object;
-      m_strongRefCount = other.m_strongRefCount;
-      m_weakRefCount = other.m_weakRefCount;
-      increment_weak_ref_count();
+      m_refCount->weak++;
     }
   }
 
   void assign( WeakPtr&& other )
   {
-    ql::swap( m_object, other.m_object );
-    ql::swap( m_strongRefCount, other.m_strongRefCount );
-    ql::swap( m_weakRefCount, other.m_weakRefCount );
-  }
-
-  std::size_t use_count() const
-  {
-    if ( weak_ref_count() > 0 )
-    {
-      return m_strongRefCount != nullptr ? *m_strongRefCount : 0;
-    }
-    else
-    {
-      return 0;
-    }
-  }
-
-  bool expired() const { return use_count() == 0; }
-
-  bool valid() const
-  {
-    return !expired();
-  }
-
-  // Acquires the resource and guarantees an
-  // extended lifetime for its usage
-  shared_ptr_type lock() const
-  {
-    return shared_ptr_type( *this );
-  }
-
-protected:
-
-  std::size_t weak_ref_count() const { return m_weakRefCount != nullptr ? *m_weakRefCount : 0; }
-
-  void decrement_weak_ref_count()
-  {
-    ( *m_weakRefCount )--;
-
-    if ( m_weakRefCount != nullptr && weak_ref_count() == 0 )
-    {
-      m_object = nullptr;
-      m_strongRefCount = nullptr;
-
-      delete m_strongRefCount;
-      m_strongRefCount = nullptr;
-    }
-  }
-
-  void increment_weak_ref_count()
-  {
-    ( *m_weakRefCount )++;
+    swap( m_object, other.m_object );
+    swap( m_refCount, other.m_refCount );
   }
 
   void destruct()
   {
     if ( weak_ref_count() > 0 )
-      decrement_weak_ref_count();
+    {
+      m_refCount->weak--;
+    }
+
+    if ( weak_ref_count() == 0 && strong_ref_count() == 0 )
+    {
+      if ( m_refCount != nullptr )
+      {
+        delete m_refCount;
+      }
+    }
+
+    m_object = nullptr;
+    m_refCount = nullptr;
   }
 
+  friend shared_type;
+
+  using base = Ptr<element_type>;
   using base::m_object;
-  std::size_t* m_strongRefCount = nullptr;
-  std::size_t* m_weakRefCount = nullptr;
+
+  WeakStrongRefCount* m_refCount = nullptr;
 };
 
-template<typename T, typename Deleter = ql::default_delete<T>, typename... Args>
-ql::UniquePtr<T, Deleter> make_unique( Args&&... args )
+template<typename T, typename Deleter = default_delete<T>, typename... Args>
+UniquePtr<T, Deleter> make_unique( Args&&... args )
 {
-  return ql::UniquePtr<T, Deleter>( std::move( T( args... ) ) );
+  return UniquePtr<T, Deleter>( move( T( args... ) ) );
 }
 
-template<typename T, typename Deleter = ql::default_delete<T>, typename... Args>
-ql::SharedPtr<T, Deleter> make_shared( Args&&... args )
+template<typename T, typename Deleter = default_delete<T>, typename... Args>
+SharedPtr<T, Deleter> make_shared( Args&&... args )
 {
-  return ql::SharedPtr<T, Deleter>( std::move( T( args... ) ) );
+  return SharedPtr<T, Deleter>( move( T( args... ) ) );
 }
 
 } // namespace ql

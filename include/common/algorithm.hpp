@@ -40,8 +40,7 @@ constexpr OutputIterator copy( InputIterator first, InputIterator last, OutputIt
 {
   while ( first != last )
   {
-    *out = *first;
-    ++first, ++out;
+    *out++ = *first++;
   }
 
   return out;
@@ -64,6 +63,27 @@ constexpr OutputIterator move( InputIterator first, InputIterator last, OutputIt
   return out;
 }
 
+template<typename InputIterator, typename OutputIterator>
+constexpr OutputIterator move_n( InputIterator input, std::size_t count, OutputIterator out )
+{
+  return move( input, input + count, out );
+}
+
+template<typename ForwardIterator, typename T>
+constexpr void fill( ForwardIterator first, ForwardIterator last, const T& value )
+{
+  while ( first != last )
+  {
+    *first = value;
+    first++;
+  }
+}
+
+template<typename ForwardIterator, typename T>
+constexpr void fill_n( ForwardIterator input, std::size_t count, const T& value )
+{
+  fill( input, input + count, value );
+}
 
 inline std::uint64_t fnv1a_hash( const void* data, std::size_t length )
 {
@@ -81,21 +101,11 @@ inline std::uint64_t fnv1a_hash( const void* data, std::size_t length )
   return hash;
 }
 
-/*template<typename Type>
-using HashFunction = std::uint64_t (const Type &);
-
-template<typename Type>
+template<typename T>
 struct hash;
 
-template<typename Type>
-  requires std::has_unique_object_representations_v<Type>
-std::uint64_t hash(const Type &value)
-{
-  return fnv1a_hash(&value, sizeof(Type));
-}*/
-
-template<typename Type>
-struct hash : std::hash<Type>
+template<typename T>
+struct hash : std::hash<T>
 {
 };
 

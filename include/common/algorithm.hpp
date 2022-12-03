@@ -1,24 +1,24 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <functional>
 #include <type_traits>
+#include "utility.hpp"
 
 namespace ql
 {
 
-constexpr auto min( auto lhs, auto rhs )
+constexpr auto min( const auto& lhs, const auto& rhs )
 {
   return lhs > rhs ? rhs : lhs;
 }
 
-constexpr auto max( auto lhs, auto rhs )
+constexpr auto max( const auto& lhs, const auto& rhs )
 {
   return lhs < rhs ? rhs : lhs;
 }
 
-constexpr auto clamp( auto value, auto min, auto max )
+constexpr auto clamp( const auto& value, const auto& min, const auto& max )
 {
   if ( value < min )
     return min;
@@ -30,38 +30,40 @@ constexpr auto clamp( auto value, auto min, auto max )
 
 constexpr void swap( auto& lhs, auto& rhs )
 {
-  auto tmp = lhs;
-  lhs      = rhs;
-  rhs      = tmp;
+  auto tmp = move( lhs );
+  lhs      = move( rhs );
+  rhs      = move( tmp );
 }
 
-template<typename Input, typename Output>
-constexpr Output copy( Input first, Input last, Output output )
+template<typename InputIterator, typename OutputIterator>
+constexpr OutputIterator copy( InputIterator first, InputIterator last, OutputIterator out )
 {
-  using type = decltype( output );
-  if constexpr ( std::is_trivially_copyable_v<type> )
+  while ( first != last )
   {
-    std::memcpy( reinterpret_cast<void*>( output ),
-                 reinterpret_cast<const void*>( first ),
-                 std::uintptr_t( last ) - std::uintptr_t( first ) );
-
-    return output + ( last - first );
+    *out = *first;
+    ++first, ++out;
   }
-  else
-  {
-    Output head = output;
-    for ( Input i = first; i != last; i++, head++ )
-      *head = *i;
 
-    return head;
-  }
+  return out;
 }
 
-template<typename Input, typename Output>
-constexpr Output copy_n( Input input, std::size_t count, Output output )
+template<typename InputIterator, typename OutputIterator>
+constexpr OutputIterator copy_n( InputIterator input, std::size_t count, OutputIterator out )
 {
-  return ql::copy( input, input + count, output );
+  return copy( input, input + count, out );
 }
+
+template<typename InputIterator, typename OutputIterator>
+constexpr OutputIterator move( InputIterator first, InputIterator last, OutputIterator out )
+{
+  while ( first != last )
+  {
+    *out++ = move( *first++ );
+  }
+
+  return out;
+}
+
 
 inline std::uint64_t fnv1a_hash( const void* data, std::size_t length )
 {

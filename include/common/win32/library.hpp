@@ -70,9 +70,9 @@ public:
   }
 
   template<typename T>
-  T* get( const char* symbol )
+  T get( const char* symbol )
   {
-    return reinterpret_cast<T*>( find_symbol( symbol ) );
+    return reinterpret_cast<T>( find_symbol( symbol ) );
   }
 
 private:

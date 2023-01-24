@@ -10,8 +10,8 @@ template<std::size_t I, typename T>
 class TupleElement
 {
 public:
-
-  T value;
+  using type = std::decay_t<T>;
+  type value;
 };
 
 template<typename Firsts, typename Seconds>
@@ -34,16 +34,16 @@ public:
   template<std::size_t I>
   constexpr auto& get()
   {
-    auto value_type    = get_nth_type<I>( parameter_pack<Ts...>() );
-    using element_type = TupleElement<I, typename decltype( value_type )::type>;
+    using value_type = nth_type_t<I, Ts...>;
+    using element_type = TupleElement<I, value_type>;
     return element_type::value;
   }
 
   template<std::size_t I>
   constexpr const auto& get() const
   {
-    auto value_type    = get_nth_type<I>( parameter_pack<Ts...>() );
-    using element_type = TupleElement<I, typename decltype( value_type )::type>;
+    using value_type = nth_type_t<I, Ts...>;
+    using element_type = TupleElement<I, value_type>;
     return element_type::value;
   }
 };
@@ -62,8 +62,7 @@ struct std::tuple_size<ql::Tuple<Ts...>>
 template<std::size_t I, typename... Ts>
 struct std::tuple_element<I, ql::Tuple<Ts...>>
 {
-  using type =
-    typename decltype( ql::get_nth_type<I>( ql::parameter_pack<Ts...>() ) )::type;
+  using type = std::decay_t<nth_type_t<I, Ts...>>;
 };
 
 namespace std

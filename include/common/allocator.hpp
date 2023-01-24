@@ -27,11 +27,11 @@ public:
   constexpr AllocationResult<value_type*> allocate_at_least( std::size_t size )
   {
     constexpr std::size_t minimum_allocation = 4;
-    std::size_t allocation = size + minimum_allocation - ( minimum_allocation % size );
-    return AllocationResult<value_type*> { reinterpret_cast<value_type*>( allocate( allocation ) ), allocation };
+    size += minimum_allocation - ( minimum_allocation % size );
+    return AllocationResult<value_type*> { allocate( size ), size };
   }
 
-  constexpr void deallocate( T* memory, std::size_t size )
+  constexpr void deallocate( value_type* memory, std::size_t size )
   {
     ::operator delete( memory );
   }

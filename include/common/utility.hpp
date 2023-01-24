@@ -25,6 +25,12 @@ constexpr std::underlying_type_t<T> to_underlying( T e )
 }
 
 template<typename T>
+constexpr std::add_const_t<T> add_const( T& object )
+{
+  return object;
+}
+
+template<typename T>
 constexpr std::remove_reference_t<T>&& move( T&& object )
 {
   return static_cast<std::remove_reference_t<T>&&>( object );
@@ -51,6 +57,27 @@ public:
 
   FirstType  first;
   SecondType second;
+};
+
+template<typename F>
+class Finally
+{
+public:
+
+  constexpr Finally( F&& functor )
+  : m_functor( move( functor ) )
+  {
+  }
+
+  constexpr ~Finally()
+  {
+    m_functor();
+  }
+
+private:
+
+  F m_functor;
+
 };
 
 } // namespace ql

@@ -43,20 +43,10 @@ public:
   template<std::size_t N>
   constexpr Vector& operator=( const type ( *items )[ N ] );
 
-  constexpr void assign( std::initializer_list<T> items );
-
-  constexpr void assign( const Vector& other );
-  constexpr void assign( Vector&& other );
-
-  constexpr void assign( const T* items, std::size_t size );
-
-  template<std::size_t N>
-  constexpr void assign( const T ( &items )[ N ] );
-
   // Capacity
   constexpr bool        empty() const { return m_size == 0; }
   constexpr std::size_t size() const { return m_size; }
-  constexpr std::size_t max_size() const { return UINT64_MAX; }
+  constexpr std::size_t max_size() const { return SIZE_MAX; }
   constexpr void        reserve( std::size_t capacity );
   constexpr std::size_t capacity() const { return m_capacity; }
   constexpr void        shrink_to_fit();
@@ -113,6 +103,16 @@ public:
 
 private:
 
+  constexpr void assign( std::initializer_list<T> items );
+
+  constexpr void assign( const Vector& other );
+  constexpr void assign( Vector&& other );
+
+  constexpr void assign( const T* items, std::size_t size );
+
+  template<std::size_t N>
+  constexpr void assign( const T ( &items )[ N ] );
+
   constexpr void destruct();
 
   Allocator m_allocator;
@@ -150,7 +150,7 @@ constexpr Vector<T, Allocator>::Vector( const Vector& other )
 template<typename T, typename Allocator>
 constexpr Vector<T, Allocator>::Vector( Vector&& other )
 {
-  assign( other );
+  assign( move( other ) );
 }
 
 template<typename T, typename Allocator>
@@ -162,8 +162,7 @@ constexpr Vector<T, Allocator>::Vector( const T* items, std::size_t size )
 template<typename T, typename Allocator>
 constexpr Vector<T, Allocator>::~Vector()
 {
-  if ( m_items != nullptr )
-    destruct();
+  destruct();
 }
 
 template<typename T, typename Allocator>
@@ -188,9 +187,9 @@ constexpr void Vector<T, Allocator>::assign( const Vector& other )
 template<typename T, typename Allocator>
 constexpr void Vector<T, Allocator>::assign( Vector&& other )
 {
-  swap( m_size, other.m_size );
-  swap( m_items, other.m_items );
-  swap( m_capacity, other.m_capacity );
+  ql::swap( m_size, other.m_size );
+  ql::swap( m_items, other.m_items );
+  ql::swap( m_capacity, other.m_capacity );
 }
 
 template<typename T, typename Allocator>
@@ -208,7 +207,7 @@ constexpr void Vector<T, Allocator>::reserve( std::size_t capacity )
   {
     auto result = m_allocator.allocate_at_least( capacity );
 
-    if ( m_items != nullptr )
+    if ( !empty() )
     {
       uninitialized_move( begin(), end(), result.ptr );
       m_allocator.deallocate( m_items, m_capacity );
@@ -226,7 +225,7 @@ constexpr void Vector<T, Allocator>::shrink_to_fit()
   {
     type* ptr = m_allocator.allocate( m_size );
 
-    if ( m_items != nullptr )
+    if ( !empty() )
     {
       uninitialized_move( begin(), end(), ptr );
       m_allocator.deallocate( m_items, m_capacity );
@@ -249,7 +248,7 @@ constexpr void Vector<T, Allocator>::resize( std::size_t count )
   else if ( count > m_size )
   {
     reserve( count );
-    default_construct_n( m_items + m_size, count - m_size );
+    uninitialized_default_construct_n( m_items + m_size, count - m_size );
     m_size = count;
   }
 }
@@ -273,15 +272,14 @@ constexpr void Vector<T, Allocator>::push_back( type&& item )
   if ( size() > capacity() )
     reserve( m_capacity + 1 );
 
-  back() = ql::move( item );
+  back() = move( item );
 }
 
 template<typename T, typename Allocator>
 template<std::size_t N>
 constexpr Vector<T, Allocator>& Vector<T, Allocator>::operator=( const type ( *items )[ N ] )
 {
-  if ( m_items != nullptr )
-    destruct();
+  destruct();
 
   assign( items );
   return *this;
@@ -290,8 +288,7 @@ constexpr Vector<T, Allocator>& Vector<T, Allocator>::operator=( const type ( *i
 template<typename T, typename Allocator>
 constexpr Vector<T, Allocator>& Vector<T, Allocator>::operator=( std::initializer_list<type> items )
 {
-  if ( m_items != nullptr )
-    destruct();
+  destruct();
 
   assign( items );
   return *this;
@@ -300,11 +297,10 @@ constexpr Vector<T, Allocator>& Vector<T, Allocator>::operator=( std::initialize
 template<typename T, typename Allocator>
 constexpr Vector<T, Allocator>& Vector<T, Allocator>::operator=( const Vector& rhs )
 {
-  if ( *this == rhs )
+  if ( this == &rhs )
     return *this;
 
-  if ( m_items != nullptr )
-    destruct();
+  destruct();
 
   assign( rhs );
   return *this;
@@ -316,8 +312,7 @@ constexpr Vector<T, Allocator>& Vector<T, Allocator>::operator=( Vector&& rhs )
   if ( *this == rhs )
     return *this;
 
-  if ( m_items != nullptr )
-    destruct();
+  destruct();
 
   assign( rhs );
   return *this;
@@ -354,7 +349,7 @@ constexpr typename Vector<T, Allocator>::iterator Vector<T, Allocator>::insert( 
 
   copy( pos, end() - pos, pos + 1 );
 
-  m_items[ m_size - 1 ] = ql::move( type() );
+  m_items[ m_size - 1 ] = move( type() );
   return &m_items[ m_size - 1 ];
 }
 
@@ -448,14 +443,17 @@ constexpr void Vector<T, Allocator>::pop_back()
 template<typename T, typename Allocator>
 constexpr void Vector<T, Allocator>::swap( Vector& other )
 {
-  swap( m_items, other.m_items );
-  swap( m_size, other.m_size );
-  swap( m_capacity, other.m_capacity );
+  ql::swap( m_items, other.m_items );
+  ql::swap( m_size, other.m_size );
+  ql::swap( m_capacity, other.m_capacity );
 }
 
 template<typename T, typename Allocator>
 constexpr void Vector<T, Allocator>::destruct()
 {
+  if ( empty() )
+    return;
+
   destroy( begin(), end() );
   m_allocator.deallocate( m_items, m_size );
 

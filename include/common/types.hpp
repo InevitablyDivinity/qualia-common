@@ -136,6 +136,9 @@ consteval auto get_nth_type( parameter_pack<Ts...> p )
   return get_current_type( remove_n_types<I>( p ) );
 }
 
+template<std::size_t N, typename... Ts>
+using nth_type_t = typename decltype( get_nth_type<N>( parameter_pack<Ts...>() ) )::type;
+
 template<typename T>
 consteval auto get_largest_type( parameter_pack<T> )
 {

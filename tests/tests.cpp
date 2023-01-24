@@ -58,7 +58,7 @@ TEST( Memory, WeakPtr )
   auto observe = [&]( ql::WeakPtr<int> weakPtr ) -> bool
   {
     auto sp = weakPtr.lock();
-    if ( sp.valid() )
+    if ( sp )
     {
       return true;
     }
@@ -83,12 +83,12 @@ TEST( Variant, TypeChecking )
 {
   ql::Variant<int, float> variant = 66.67f;
 
-  EXPECT_TRUE( variant.holds_alternative<float>() );
-  EXPECT_FALSE( variant.holds_alternative<int>() );
+  EXPECT_TRUE( std::holds_alternative<float>( variant ) );
+  EXPECT_FALSE( std::holds_alternative<int>( variant ) );
 
   variant = 1337;
-  EXPECT_TRUE( variant.holds_alternative<int>() );
-  EXPECT_FALSE( variant.holds_alternative<float>() );
+  EXPECT_TRUE( std::holds_alternative<int>( variant ) );
+  EXPECT_FALSE( std::holds_alternative<float>( variant )  );
 }
 
 TEST( Vector, Reallocation )

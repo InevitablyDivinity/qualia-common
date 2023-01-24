@@ -21,6 +21,8 @@ public:
   using argument_types = parameter_pack<Args...>;
   using pointer = R (*)( Args... );
 
+  constexpr Function() = default;
+
   constexpr Function( auto&& f )
   {
     assign( f );
@@ -54,11 +56,11 @@ public:
   {
     if ( m_isFunctionPtr )
     {
-      return m_ptr( forward( args )... );
+      return m_ptr( forward<Args>( args )... );
     }
     else
     {
-      return m_callable( forward( args )... );
+      return m_callable->operator()( forward<Args>( args )... );
     }
   }
 
@@ -79,7 +81,7 @@ private:
     {
       m_isFunctionPtr = false;
 
-      if constexpr ( sizeof( type ) > sizeof( std::max_align_t ) )
+      if constexpr ( sizeof( type ) > sizeof( m_stackBuffer ) )
       {
         m_callable = new Callable<type>( f );
       }
@@ -97,18 +99,15 @@ private:
 
   constexpr void destruct()
   {
-    if ( !std::is_constant_evaluated() )
+    if ( !m_isFunctionPtr )
     {
-      if ( !m_isFunctionPtr )
+      if ( m_callable->size() > sizeof( std::max_align_t ) )
       {
-        if ( m_callable->size() > sizeof( std::max_align_t ) )
-        {
-          delete m_callable;
-        }
-        else
-        {
-          destroy_at( m_callable );
-        }
+        delete m_callable;
+      }
+      else
+      {
+        destroy_at( m_callable );
       }
     }
   }
@@ -136,7 +135,7 @@ private:
 
     constexpr virtual R operator()( Args&&... args )
     {
-      return m_callable( forward( args )... );
+      return m_callable( forward<Args>( args )... );
     }
 
     constexpr virtual std::size_t size() const
@@ -161,15 +160,15 @@ private:
     F m_callable;
   };
 
-  bool m_isFunctionPtr = false;
+  byte_t m_stackBuffer[alignof( std::max_align_t )] = {};
 
   union
   {
-    R ( *m_ptr )( Args... );
+    R ( *m_ptr )( Args... ) = nullptr;
     ICallable* m_callable;
   };
 
-  byte m_stackBuffer[alignof( std::max_align_t )] = {};
+  bool m_isFunctionPtr = false;
 
 };
 

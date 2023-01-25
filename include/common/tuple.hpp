@@ -62,7 +62,7 @@ struct std::tuple_size<ql::Tuple<Ts...>>
 template<std::size_t I, typename... Ts>
 struct std::tuple_element<I, ql::Tuple<Ts...>>
 {
-  using type = std::decay_t<nth_type_t<I, Ts...>>;
+  using type = std::decay_t<ql::nth_type_t<I, Ts...>>;
 };
 
 namespace std

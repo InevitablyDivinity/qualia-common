@@ -108,7 +108,7 @@ TEST( Vector, Reallocation )
 
   for ( MoveableObject& s: v )
   {
-    EXPECT_NE( s.ptr , &s );
+    EXPECT_EQ( s.ptr, &s );
   }
 }
 

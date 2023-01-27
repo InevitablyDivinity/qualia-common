@@ -2,6 +2,7 @@
 #include "common/functional.hpp"
 #include <concepts>
 #include <pthread.h>
+#include <sched.h>
 
 namespace ql
 {
@@ -15,6 +16,11 @@ public:
   Thread() = default;
 
   Thread( std::invocable auto callable ) { assign( callable ); }
+
+  static Thread current()
+  {
+    return Thread( pthread_self() );
+  }
 
   ~Thread()
   {
@@ -33,6 +39,11 @@ public:
     m_thread = invalid_thread;
   }
 
+  void yield()
+  {
+    sched_yield();
+  }
+
   Thread& operator=( std::invocable auto callable )
   {
     join();
@@ -41,6 +52,11 @@ public:
   }
 
 private:
+
+  Thread( pthread_t thread )
+  : m_thread( thread )
+  {
+  }
 
   void assign( std::invocable auto callable )
   {

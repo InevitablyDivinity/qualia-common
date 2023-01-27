@@ -17,6 +17,11 @@ public:
 
   Thread( std::invocable auto callable ) { assign( callable ); }
 
+  static Thread current()
+  {
+    return Thread( GetCurrentThread() );
+  }
+
   ~Thread()
   {
     if ( m_thread != invalid_thread )
@@ -34,6 +39,11 @@ public:
     m_thread = invalid_thread;
   }
 
+  void yield()
+  {
+    SwitchToThread();
+  }
+
   Thread& operator=( std::invocable auto callable )
   {
     join();
@@ -42,6 +52,12 @@ public:
   }
 
 private:
+
+  Thread( HANDLE thread )
+  : m_thread( thread )
+  {
+
+  }
 
   void assign( std::invocable auto callable )
   {

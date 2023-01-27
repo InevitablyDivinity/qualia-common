@@ -10,13 +10,28 @@ class Thread
 {
 public:
 
+  static constexpr int invalid_thread = -1;
+
   Thread() = default;
 
   Thread( std::invocable auto callable ) { assign( callable ); }
 
-  ~Thread() { join(); }
+  ~Thread()
+  {
+    if ( m_thread != invalid_thread )
+      join();
+  }
 
-  void join() { pthread_join( m_thread, nullptr ); }
+  void join()
+  {
+    pthread_join( m_thread, nullptr );
+  }
+
+  void detach()
+  {
+    pthread_detach( m_thread );
+    m_thread = invalid_thread;
+  }
 
   Thread& operator=( std::invocable auto callable )
   {
@@ -41,7 +56,7 @@ private:
   }
 
   Function<void()> m_function;
-  pthread_t        m_thread;
+  pthread_t        m_thread = invalid_thread;
 };
 
 } // namespace ql

@@ -11,30 +11,27 @@ class Thread
 {
 public:
 
+  static constexpr HANDLE invalid_thread = NULL;
+
   Thread() = default;
 
   Thread( std::invocable auto callable ) { assign( callable ); }
 
-  ~Thread() { join(); }
+  ~Thread()
+  {
+    if ( m_thread != invalid_thread )
+      join();
+  }
 
   void join()
   {
-    DWORD exitCode;
-    do
-    {
-      if ( GetExitCodeThread( m_thread, &exitCode ) == false )
-      {
-        char* error = detail::win32::get_error();
-        if ( error != nullptr )
-        {
-          std::fprintf( stderr, "%s\n", error );
-        }
+    WaitForSingleObject( m_thread, INFINITE );
+  }
 
-        break;
-      }
-
-      Sleep( 10 );
-    } while ( exitCode != STILL_ACTIVE )
+  void detach()
+  {
+    CloseHandle( m_thread );
+    m_thread = invalid_thread;
   }
 
   Thread& operator=( std::invocable auto callable )

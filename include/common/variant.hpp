@@ -260,10 +260,7 @@ namespace ql
 
     constexpr void destruct()
     {
-      if ( !std::is_constant_evaluated() )
-      {
-        destroy_alternative( m_typeIndex );
-      }
+      destroy_alternative( m_typeIndex );
     }
 
     template<std::size_t... Is>

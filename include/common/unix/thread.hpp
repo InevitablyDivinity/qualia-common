@@ -24,13 +24,13 @@ public:
 
   ~Thread()
   {
-    if ( m_thread != invalid_thread )
-      join();
+    join();
   }
 
   void join()
   {
-    pthread_join( m_thread, nullptr );
+    if ( m_thread != invalid_thread )
+      pthread_join( m_thread, nullptr );
   }
 
   void detach()

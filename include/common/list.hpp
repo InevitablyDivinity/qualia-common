@@ -69,26 +69,27 @@ public:
 
   using type     = Type;
   using iterator = NodeIterator;
+  using const_iterator = const NodeIterator;
 
   List() = default;
 
   template<std::size_t Size>
-  List( const Type ( &items )[ Size ] )
+  List( const type ( &items )[ Size ] )
   {
-    for ( Type& item : items )
-      insert( item );
+    for ( type& item : items )
+      push_back( item );
   }
 
-  List( std::initializer_list<Type> items )
+  List( std::initializer_list<type> items )
   {
-    for ( Type& item : items )
-      insert( item );
+    for ( type& item : items )
+      push_back( item );
   }
 
   List( const List& src )
   {
-    for ( Type& item : src )
-      insert( item );
+    for ( type& item : src )
+      push_back( item );
   }
 
   List( List&& src )

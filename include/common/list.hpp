@@ -199,6 +199,13 @@ public:
     }
   }
 
+  iterator insert( const_iterator pos, const type& value )
+  {
+    Node* node = new Node { .value = value };
+    node->previous = pos.m_node->previous;
+    pos.m_node->previous = node;
+  }
+
   iterator       begin() { return iterator( m_begin ); }
   const iterator begin() const { return iterator( m_begin ); }
 

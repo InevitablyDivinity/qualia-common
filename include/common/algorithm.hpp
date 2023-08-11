@@ -297,9 +297,10 @@ constexpr auto& clamp( const auto& value, const auto& min, const auto& max, Comp
     return value;
 }
 
-constexpr void swap( auto& lhs, auto& rhs )
+template<typename T>
+constexpr void swap( T& lhs, T& rhs )
 {
-  auto tmp = move( lhs );
+  T tmp    = move( lhs );
   lhs      = move( rhs );
   rhs      = move( tmp );
 }

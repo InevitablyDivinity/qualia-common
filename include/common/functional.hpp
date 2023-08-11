@@ -101,11 +101,11 @@ private:
   {
     if ( !m_isFunctionPtr )
     {
-      if ( m_callable->size() > sizeof( std::max_align_t ) )
+      if ( m_callable and m_callable->size() > sizeof( std::max_align_t ) )
       {
         delete m_callable;
       }
-      else
+      else if ( m_callable )
       {
         destroy_at( m_callable );
       }

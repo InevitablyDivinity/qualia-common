@@ -36,7 +36,7 @@ public:
 
 private:
 
-  underlying_type m_flags;
+  underlying_type m_flags = 0;
 };
 
 } // namespace ql

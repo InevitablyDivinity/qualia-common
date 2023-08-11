@@ -44,7 +44,7 @@ public:
   constexpr Vector& operator=( const type ( *items )[ N ] );
 
   // Capacity
-  constexpr bool        empty() const { return m_size == 0; }
+  constexpr bool        empty() const { return m_items == nullptr; }
   constexpr std::size_t size() const { return m_size; }
   constexpr std::size_t max_size() const { return SIZE_MAX; }
   constexpr void        reserve( std::size_t capacity );
@@ -297,7 +297,7 @@ constexpr Vector<T, Allocator>& Vector<T, Allocator>::operator=( std::initialize
 template<typename T, typename Allocator>
 constexpr Vector<T, Allocator>& Vector<T, Allocator>::operator=( const Vector& rhs )
 {
-  if ( this == &rhs )
+  if ( this == ql::addressof( rhs ) )
     return *this;
 
   destruct();
@@ -309,7 +309,7 @@ constexpr Vector<T, Allocator>& Vector<T, Allocator>::operator=( const Vector& r
 template<typename T, typename Allocator>
 constexpr Vector<T, Allocator>& Vector<T, Allocator>::operator=( Vector&& rhs )
 {
-  if ( *this == rhs )
+  if ( this == ql::addressof( rhs ) )
     return *this;
 
   destruct();
@@ -318,9 +318,9 @@ constexpr Vector<T, Allocator>& Vector<T, Allocator>::operator=( Vector&& rhs )
   return *this;
 }
 
+// inserts value before pos.
 template<typename T, typename Allocator>
-constexpr typename Vector<T, Allocator>::iterator Vector<T, Allocator>::insert( const_iterator pos,
-                                                const T&       value )
+constexpr typename Vector<T, Allocator>::iterator Vector<T, Allocator>::insert( const_iterator pos, const T& value )
 {
   if ( pos <= begin() || pos > end() )
     return end();
@@ -336,6 +336,7 @@ constexpr typename Vector<T, Allocator>::iterator Vector<T, Allocator>::insert( 
   return &m_items[ m_size - 1 ];
 }
 
+// inserts value before pos.
 template<typename T, typename Allocator>
 constexpr typename Vector<T, Allocator>::iterator Vector<T, Allocator>::insert( const_iterator pos, T&& value )
 {
@@ -347,18 +348,21 @@ constexpr typename Vector<T, Allocator>::iterator Vector<T, Allocator>::insert( 
   if ( size() > capacity() )
     reserve( capacity() + 1 );
 
-  copy( pos, end() - pos, pos + 1 );
+  copy( pos, end() - pos, iterator( pos ) );
 
   m_items[ m_size - 1 ] = move( type() );
   return &m_items[ m_size - 1 ];
 }
 
+// inserts count copies of the value before pos.
 template<typename T, typename Allocator>
 constexpr typename Vector<T, Allocator>::iterator
 Vector<T, Allocator>::insert( const_iterator pos, std::size_t count, const T& value )
 {
-  for ( std::size_t i = 0; i < count; i++ )
-    insert( pos + i, value );
+  for ( std::size_t i = count; i > 0; i-- )
+    insert( std::prev( pos, i ), value );
+
+  return pos - count;
 }
 
 template<typename T, typename Allocator>
@@ -366,7 +370,9 @@ constexpr typename Vector<T, Allocator>::iterator Vector<T, Allocator>::insert( 
                                                 iterator first, iterator last )
 {
   for ( iterator i = first; i != last; i++ )
-    insert( pos + i - first, *i );
+    insert( std::prev( pos, std::distance( i, last ) ), *i );
+
+  return const_cast<iterator>( std::prev( pos, std::distance( first, last ) ) );
 }
 
 template<typename T, typename Allocator>

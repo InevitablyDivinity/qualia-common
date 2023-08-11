@@ -4,80 +4,46 @@
 namespace ql
 {
 
-template<typename T>
-using IteratorTraits = std::iterator_traits<T>;
+  struct input_iterator_tag {};
+  struct output_iterator_tag {};
+  struct forward_iterator_tag : input_iterator_tag {};
+  struct bidirectional_iterator_tag : forward_iterator_tag {};
+  struct random_access_iterator_tag : bidirectional_iterator_tag {};
+  struct contiguous_iterator_tag : public random_access_iterator_tag {};
 
-template<typename Input>
-typename IteratorTraits<Input>::difference_type distance( Input first,
-                                                          Input last )
-{
+  template<typename T>
+  using iterator_traits = std::iterator_traits<T>;
+
+  // advance
+  // next
+  // prev
+  // distance
+
+  namespace detail
+  {
+
+    template<typename Input>
+    typename iterator_traits<Input>::difference_type distance( Input first, Input last, input_iterator_tag )
+    {
+      typename iterator_traits<Input>::difference_type result = 0;
+      while ( first != last )
+        ( first++, result++ );
+
+      return result;
+    }
+
+    template<typename Input>
+    typename iterator_traits<Input>::difference_type distance( Input first, Input last, random_access_iterator_tag )
+    {
+      return last - first;
+    }
+
+  }
+
+  template<typename Input>
+  typename iterator_traits<Input>::difference_type distance( Input first, Input last )
+  {
+    return detail::distance( first, last, typename iterator_traits<Input>::iterator_category() );
+  }
+
 }
-
-template<typename T, typename PtrType = T*, typename RefType = T&>
-class Iterator
-{
-public:
-
-  using type      = T;
-  using pointer   = PtrType;
-  using reference = RefType;
-
-  Iterator( pointer ptr ) { m_ptr = ptr; }
-
-  bool operator==( Iterator& rhs ) { return m_ptr == rhs.m_ptr; }
-  bool operator!=( Iterator& rhs ) { return m_ptr != rhs.m_ptr; }
-
-  reference operator*() { return *m_ptr; }
-
-  Iterator& operator++()
-  {
-    ++m_ptr;
-    return *this;
-  }
-  Iterator& operator--()
-  {
-    --m_ptr;
-    return *this;
-  }
-
-  Iterator operator++( int ) { return Iterator( m_ptr + 1 ); }
-  Iterator operator--( int ) { return Iterator( m_ptr + 1 ); }
-
-  operator bool() const { return m_ptr != nullptr; }
-
-protected:
-
-  pointer m_ptr = nullptr;
-};
-
-template<typename Type, typename PtrType = Type*, typename RefType = Type&>
-class ReverseIterator : public Iterator<Type, PtrType, RefType>
-{
-public:
-
-  using base      = Iterator<Type, PtrType, RefType>;
-  using pointer   = PtrType;
-  using reference = RefType;
-
-  ReverseIterator& operator++()
-  {
-    base::m_ptr--;
-    return *this;
-  }
-  ReverseIterator& operator--()
-  {
-    base::m_ptr++;
-    return *this;
-  }
-
-  ReverseIterator operator++( int )
-  {
-    return ReverseIterator( base::m_ptr - 1 );
-  }
-  ReverseIterator operator--( int )
-  {
-    return ReverseIterator( base::m_ptr + 1 );
-  }
-};
-
-} // namespace ql

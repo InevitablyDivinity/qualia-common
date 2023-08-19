@@ -67,7 +67,6 @@ struct Overload : VisitorTypes...
 template<typename... VisitorTypes>
 Overload( VisitorTypes... ) -> Overload<VisitorTypes...>;
 
-
 template<typename... Ts, std::size_t... Is>
 auto get_type_array(parameter_pack<Ts...>, std::index_sequence<Is...>)
 -> decltype(Overload { [](std::in_place_index_t<Is>) -> type_identity_t<Ts> { return {}; }... } );
@@ -77,7 +76,6 @@ using type_array_t = decltype(get_type_array(parameter_pack<Ts...>(), std::index
 
 template<std::size_t I, typename... Ts>
 using type_for_index_t = decltype(type_array_t<Ts...>{}(std::in_place_index<I>));
-
 
 template<typename... Ts, std::size_t... Is>
 auto get_type_set(parameter_pack<Ts...>, std::index_sequence<Is...>)
@@ -89,8 +87,6 @@ using type_set_t = decltype(get_type_set(parameter_pack<Ts...>(), std::index_seq
 template<typename T, typename... Ts>
 inline constexpr std::size_t index_for_type_v = type_set_t<Ts...>{}(std::in_place_type<T>);
 
-
-//////////////////
 template<typename... Ts, std::size_t... Is>
 auto get_type_overload_indices(parameter_pack<Ts...>, std::index_sequence<Is...>)
 -> decltype(Overload { [](Ts) -> std::integral_constant<size_t, Is> { return {}; }... } );
@@ -100,7 +96,6 @@ using type_overload_indices_t = decltype(get_type_overload_indices(parameter_pac
 
 template<typename T, typename... Ts>
 inline constexpr std::size_t type_index_for_overload_selection_v = decltype(type_overload_indices_t<Ts...>{}(std::declval<T>()))::value;
-//////////////////
 
 template<typename... Ts>
 concept unique_types = requires ( type_set_t<Ts...> t ) {

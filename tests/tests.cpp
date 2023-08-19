@@ -40,8 +40,11 @@ TEST( Tuple, StdGet )
 {
   ql::Tuple t = { 1337, 66.67, true };
   EXPECT_EQ( std::get<0>( t ) , 1337 );
+  EXPECT_EQ( std::get<int>( t ), 1337 );
   EXPECT_FLOAT_EQ( std::get<1>( t ), 66.67 );
+  EXPECT_FLOAT_EQ( std::get<double>( t ), 66.67 );
   EXPECT_TRUE( std::get<2>( t ) );
+  EXPECT_TRUE( std::get<bool>( t ) );
 }
 
 TEST( Tuple, StructuredBindingDeclaration )

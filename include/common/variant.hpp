@@ -266,10 +266,13 @@ namespace ql
 
     FORCEINLINE constexpr void destruct()
     {
-      destroy_alternative( m_typeIndex );
+      if ( m_typeIndex != invalid_variant )
+      {
+        using variant_destructor = void (*)( Variant& );
+        variant_destructor destructor = destructors[m_typeIndex];
+        destructor( *this );
+      }
     }
-
-    using variant_destructor = void (*)( Variant& );
 
     template<std::size_t... Is>
     static consteval auto make_destructors( std::index_sequence<Is...> )
@@ -287,12 +290,6 @@ namespace ql
     };
 
     static constexpr ql::Array destructors = make_destructors( std::index_sequence_for<Ts...> {} );
-
-    /*inline*/ constexpr void destroy_alternative( std::size_t index )
-    {
-      variant_destructor destructor = destructors[m_typeIndex];
-      destructor( *this );
-    }
 
     VariadicUnion<Ts...> m_union = {};
     std::size_t m_typeIndex = invalid_variant;

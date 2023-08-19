@@ -11,11 +11,11 @@
 #endif
 
 #if __GNUC__ || __clang__
-  #define FORCEINLINE gnu::always_inline
+  #define FORCEINLINE [[gnu::always_inline]] inline
 #elif _MSC_VER
-  #define FORCEINLINE msvc::forceinline
+  #define FORCEINLINE [[msvc::forceinline]] inline
 #else
-  #define FORCEINLINE
+  #define FORCEINLINE inline
 #endif
 
 namespace ql
@@ -58,8 +58,8 @@ using bool64_t = uint64_t;
   #define IF_CONSTEVAL if consteval
   #define IF_NOT_CONSTEVAL if !consteval
 #else
-  #define IF_CONSTEVAL	 if ( std::is_constant_evaluated() ) [[unlikely]]
-  #define IF_NOT_CONSTEVAL if ( !std::is_constant_evaluated() ) [[likely]]
+  #define IF_CONSTEVAL if ( std::is_constant_evaluated() ) [[unlikely]]
+  #define IF_NOT_CONSTEVAL if ( not std::is_constant_evaluated() ) [[likely]]
 #endif
 
 
@@ -67,7 +67,7 @@ using bool64_t = uint64_t;
 inline void assert( bool expression, const char* msg,
                     const std::source_location l = std::source_location::current() ) noexcept
 {
-  if ( !std::is_constant_evaluated() )
+  if ( not std::is_constant_evaluated() )
   {
     if ( !expression )
     {
@@ -78,7 +78,7 @@ inline void assert( bool expression, const char* msg,
 }
 
 // Temporary stand-in for C++23's std::unreachable()
-[[FORCEINLINE, noreturn]] inline void unreachable() noexcept
+[[noreturn]] FORCEINLINE void unreachable() noexcept
 {
 #if __GNUC__ || __clang__
   __builtin_unreachable();
@@ -90,7 +90,7 @@ inline void assert( bool expression, const char* msg,
 }
 
 // Temporary stand-in for C++23's [[assume]]
-[[FORCEINLINE]] inline void assume( bool expr ) noexcept
+FORCEINLINE void assume( bool expr ) noexcept
 {
 #if __clang__
   __builtin_assume( expr );
@@ -105,7 +105,7 @@ inline void assert( bool expression, const char* msg,
 }
 
 // An equivalent of std::breakpoint()
-[[FORCEINLINE]] inline void breakpoint() noexcept
+FORCEINLINE void breakpoint() noexcept
 {
 #if __GNUC__ || __clang__
   __builtin_trap();

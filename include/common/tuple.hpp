@@ -1,4 +1,5 @@
 #pragma once
+#include "common/common.hpp"
 #include "common/types.hpp"
 #include <type_traits>
 #include <utility>
@@ -10,6 +11,7 @@ template<std::size_t I, typename T>
 class TupleElement
 {
 public:
+
   using type = std::decay_t<T>;
   type value;
 };
@@ -24,27 +26,20 @@ class TupleBase<std::index_sequence<Firsts...>, parameter_pack<Seconds...>>
 };
 
 template<typename... Ts>
-class Tuple
-  : public TupleBase<std::index_sequence_for<Ts...>, parameter_pack<Ts...>>
+class Tuple : public TupleBase<std::index_sequence_for<Ts...>, parameter_pack<Ts...>>
 {
 public:
 
-  static constexpr std::size_t size = sizeof...( Ts );
-
   template<std::size_t I>
-  constexpr auto& get()
+  FORCEINLINE constexpr auto& get()
   {
-    using value_type = nth_type_t<I, Ts...>;
-    using element_type = TupleElement<I, value_type>;
-    return element_type::value;
+    return TupleElement<I, type_for_index_t<I, Ts...>>::value;
   }
 
   template<std::size_t I>
-  constexpr const auto& get() const
+  FORCEINLINE constexpr const auto& get() const
   {
-    using value_type = nth_type_t<I, Ts...>;
-    using element_type = TupleElement<I, value_type>;
-    return element_type::value;
+    return TupleElement<I, type_for_index_t<I, Ts...>>::value;
   }
 };
 
@@ -53,30 +48,43 @@ Tuple( Ts... ) -> Tuple<Ts...>;
 
 } // namespace ql
 
-template<typename... Ts>
-struct std::tuple_size<ql::Tuple<Ts...>>
+namespace std
 {
-  static constexpr std::size_t value = ql::Tuple<Ts...>::size;
+template<typename... Ts>
+struct tuple_size<ql::Tuple<Ts...>>
+{
+  static constexpr std::size_t value = sizeof...( Ts );
 };
 
 template<std::size_t I, typename... Ts>
-struct std::tuple_element<I, ql::Tuple<Ts...>>
+struct tuple_element<I, ql::Tuple<Ts...>>
 {
-  using type = std::decay_t<ql::nth_type_t<I, Ts...>>;
+  using type = std::decay_t<ql::type_for_index_t<I, Ts...>>;
 };
 
-namespace std
+template<std::size_t I, typename... Ts>
+FORCEINLINE constexpr auto& get( ql::Tuple<Ts...>& t )
 {
-  template<std::size_t I, typename... Ts>
-  constexpr auto& get( ql::Tuple<Ts...>& t )
-  {
-    return t.template get<I>();
-  }
-
-  template<std::size_t I, typename... Ts>
-  constexpr const auto& get( const ql::Tuple<Ts...>& t )
-  {
-    return t.template get<I>();
-  }
+  return static_cast<ql::TupleElement<I, ql::type_for_index_t<I, Ts...>>&>( t ).value;
 }
 
+template<std::size_t I, typename... Ts>
+FORCEINLINE constexpr const auto& get( const ql::Tuple<Ts...>& t )
+{
+  return static_cast<const ql::TupleElement<I, ql::type_for_index_t<I, Ts...>>&>( t ).value;
+}
+
+template<typename T, typename... Ts>
+  requires ql::unique_types<Ts...>
+FORCEINLINE constexpr auto& get( ql::Tuple<Ts...>& t )
+{
+  return std::get<ql::index_for_type_v<T, Ts...>>( t );
+}
+
+template<typename T, typename... Ts>
+  requires ql::unique_types<Ts...>
+FORCEINLINE constexpr const auto& get( const ql::Tuple<Ts...>& t )
+{
+  return std::get<ql::index_for_type_v<T, Ts...>>( t );
+}
+} // namespace std

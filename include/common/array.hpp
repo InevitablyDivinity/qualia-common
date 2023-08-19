@@ -75,48 +75,4 @@ constexpr auto to_array( T( &array )[N] )
   return tmp;
 }
 
-namespace details
-{
-  template<typename T>
-  struct is_ref_wrapper : std::false_type
-  {
-  };
-
-  template<typename T>
-  struct is_ref_wrapper<std::reference_wrapper<T>> : std::true_type
-  {
-  };
-
-  template<typename T>
-  static constexpr bool not_ref_wrapper = !is_ref_wrapper<std::decay_t<T>>::value;
-
-  template<typename D, typename... Ts>
-  struct return_type_helper
-  {
-    using type = D;
-  };
-
-  template<typename... Types>
-  struct return_type_helper<void, Types...> : std::common_type<Types...>
-  {
-    static_assert( ( not_ref_wrapper<Types> && ... ), "Types cannot contain reference_wrappers when D is void" );
-  };
-
-  template<typename... Ts>
-  using return_type_helper_t = typename return_type_helper<Ts...>::type;
-
-  template<typename D, typename... Ts>
-  using return_type_t = Array<
-    return_type_helper_t<D, Ts...>,
-    sizeof...( Ts )
-  >;
-}
-
-
-template<typename D = void, typename... Ts>
-constexpr details::return_type_t<D, Ts...> make_array( Ts&&... args )
-{
-  return Array { args... };
-}
-
 }

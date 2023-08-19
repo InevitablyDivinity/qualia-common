@@ -1,6 +1,6 @@
 #pragma once
+#include "common/common.hpp"
 #include "common/types.hpp"
-#include "common/memory.hpp"
 #include "common/array.hpp"
 
 namespace ql
@@ -97,15 +97,6 @@ namespace ql
     static constexpr std::size_t value = sizeof...( Ts );
   };
 
-  template<typename... VisitorTypes>
-  struct Overload : VisitorTypes...
-  {
-    using VisitorTypes::operator()...;
-  };
-
-  template<typename... VisitorTypes>
-  Overload( VisitorTypes... ) -> Overload<VisitorTypes...>;
-
   // Tail, default active member
   template<typename... Ts>
   union VariadicUnion
@@ -121,14 +112,14 @@ namespace ql
 
     // In-place constructor
     template<typename... Args>
-    constexpr VariadicUnion( in_place_index_t<0>, Args&&... args )
+    FORCEINLINE constexpr VariadicUnion( in_place_index_t<0>, Args&&... args )
     : m_value( forward<Args>( args )... )
     {
     }
 
     // Recursive in-place constructor
     template<std::size_t I, typename... Args>
-    constexpr VariadicUnion( in_place_index_t<I>, Args&&... args )
+    FORCEINLINE constexpr VariadicUnion( in_place_index_t<I>, Args&&... args )
     : m_rest( in_place_index<I - 1>, forward<Args>( args )... )
     {
     }
@@ -136,16 +127,16 @@ namespace ql
     // The default active member is VariadicUnion<>,
     // so this recursively constructs `rest` until it
     // constructs the head.
-    constexpr VariadicUnion() : m_rest()
+    FORCEINLINE constexpr VariadicUnion() : m_rest {}
     {
     }
 
-    constexpr ~VariadicUnion()
+    FORCEINLINE constexpr ~VariadicUnion()
     {
     }
 
     template<std::size_t I, std::size_t N = 0>
-    constexpr void assign( const auto& value )
+    FORCEINLINE constexpr void assign( const auto& value )
     {
       if constexpr ( I == N )
       {
@@ -158,7 +149,7 @@ namespace ql
     }
 
     template<std::size_t I, std::size_t N = 0>
-    constexpr auto& get()
+    FORCEINLINE constexpr auto& get()
     {
       if constexpr ( I == N )
       {
@@ -171,7 +162,7 @@ namespace ql
     }
 
     template<std::size_t I, std::size_t N = 0>
-    constexpr const auto& get() const
+    FORCEINLINE constexpr const auto& get() const
     {
       if constexpr ( I == N )
       {
@@ -190,132 +181,115 @@ namespace ql
   {
   public:
 
-    constexpr Variant( const is_convertible_to_any_of<Ts...> auto& value )
+    template<typename T>
+    FORCEINLINE constexpr Variant( T&& value )
     {
-      assign( value );
+      constexpr std::size_t index = type_index_for_overload_selection_v<T, Ts...>;
+      construct<index>( forward<T>( value ) );
     }
 
-    constexpr ~Variant()
+    FORCEINLINE constexpr ~Variant()
     {
       destruct();
     }
 
-    constexpr Variant& operator=( const is_convertible_to_any_of<Ts...> auto& value )
+    template<typename T>
+    FORCEINLINE constexpr Variant& operator=( T&& value )
     {
       destruct();
 
-      assign( value );
+      assign( forward<T>( value ) );
       return *this;
     }
 
     template<is_any_of<Ts...> T>
-    constexpr auto& get()
+    FORCEINLINE constexpr auto& get()
     {
-      constexpr std::size_t index = variant_index_v<T, Variant>;
-      return std::get<index>( m_union );
+      return std::get<variant_index_v<T, Variant>>( m_union );
     }
 
     template<is_any_of<Ts...> T>
-    constexpr const auto& get() const
+    FORCEINLINE constexpr const auto& get() const
     {
-      constexpr std::size_t index = variant_index_v<T, Variant>;
-      return std::get<index>( m_union );
+      return std::get<variant_index_v<T, Variant>>( m_union );
     }
 
     template<std::size_t I>
-    constexpr auto& get()
+    FORCEINLINE constexpr auto& get()
     {
       return get<variant_alternative_t<I, Variant>>();
     }
 
     template<std::size_t I>
-    constexpr const auto& get() const
+    FORCEINLINE constexpr const auto& get() const
     {
       return get<variant_alternative_t<I, Variant>>();
     }
 
-    constexpr std::size_t index() const { return m_typeIndex; }
+    FORCEINLINE constexpr std::size_t index() const { return m_typeIndex; }
 
   private:
 
     static constexpr std::size_t invalid_variant = sizeof...( Ts );
 
-    constexpr void assign( const is_convertible_to_any_of<Ts...> auto& value )
+    template<std::size_t I, typename T>
+    FORCEINLINE constexpr void construct( T&& value )
     {
-      constexpr std::size_t index = value_to_index<decltype( value )>();
+      // Construct in-place
+      m_typeIndex = I;
+      construct_at( &m_union, in_place_index<I>, forward<T>( value ) );
+    }
+
+    template<std::size_t I, typename T>
+    FORCEINLINE constexpr void assign( T&& value )
+    {
+      m_typeIndex = I;
+      m_union.template assign<I>( forward<T>( value ) );
+    }
+
+    template<typename T>
+    FORCEINLINE constexpr void assign( T&& value )
+    {
+      constexpr std::size_t index = type_index_for_overload_selection_v<T, Ts...>;
 
       if ( m_typeIndex == index )
       {
         // The union is already initialised with this type
-        m_typeIndex = index;
-        m_union.template assign<index>( value );
+        assign<index>( forward<T>( value ) );
       }
       else
       {
         // Construct in-place
-        m_typeIndex = index;
-        construct_at( &m_union, in_place_index<index>, value );
+        construct<index>( forward<T>( value ) );
       }
     }
 
-    constexpr void destruct()
+    FORCEINLINE constexpr void destruct()
     {
       destroy_alternative( m_typeIndex );
     }
 
-    template<std::size_t... Is>
-    static consteval auto get_overload_index_table( std::index_sequence<Is...> )
-    {
-      return Overload {
-        []( const variant_alternative_t<Is, Variant>& value )
-        {
-          using type = variant_alternative_t<Is, Variant>;
-          constexpr std::size_t index = variant_index_v<type, Variant>;
-          return std::integral_constant<std::size_t, index>();
-        }...
-      };
-    };
-
-    template<typename T>
-    static consteval std::size_t value_to_index()
-    {
-      constexpr auto overload_index = get_overload_index_table( std::index_sequence_for<Ts...>() );
-      using index = decltype( overload_index( std::declval<T>() ) );
-      return index();
-    }
-
     using variant_destructor = void (*)( Variant& );
-
-    template<std::size_t I>
-    static consteval variant_destructor make_destructor()
-    {
-      using type = variant_alternative_t<I, Variant>;
-
-      return []( Variant& variant )
-      {
-        if constexpr ( !std::is_trivially_destructible_v<type> && std::is_destructible_v<type> )
-        {
-          auto& object = std::get<I>( variant );
-          destroy_at( &object );
-        }
-      };
-    }
 
     template<std::size_t... Is>
     static consteval auto make_destructors( std::index_sequence<Is...> )
     {
-      return make_array( make_destructor<Is>()... );
+      return ql::Array {
+        +[]( Variant& variant )
+        {
+          if constexpr ( not std::is_trivially_destructible_v<variant_alternative_t<Is, Variant>>
+                         and std::destructible<variant_alternative_t<Is, Variant>> )
+          {
+            destroy_at( addressof( std::get<Is>( variant ) ) );
+          }
+        }...
+      };
     };
 
-    static consteval auto make_destructors()
-    {
-      using indices = std::index_sequence_for<Ts...>;
-      return make_destructors( indices() );
-    };
+    static constexpr ql::Array destructors = make_destructors( std::index_sequence_for<Ts...> {} );
 
-    constexpr void destroy_alternative( std::size_t index )
+    /*inline*/ constexpr void destroy_alternative( std::size_t index )
     {
-      constexpr auto destructors = make_destructors();
       variant_destructor destructor = destructors[m_typeIndex];
       destructor( *this );
     }
@@ -342,12 +316,12 @@ namespace ql
             std::size_t... Is, std::size_t... Js, typename... Ks>
     consteval auto create_dispatch_matrix( std::index_sequence<Is...>, std::index_sequence<Js...>, Ks... ks)
     {
-      return make_array(
+      return ql::Array {
         create_dispatch_matrix<VisitorType, VariantTypes...>(
           std::index_sequence<Is..., Js>(),
           ks...
         )...
-      );
+      };
     };
 
     // Creates an N-dimensional matrix of visitor functions
@@ -383,10 +357,9 @@ namespace ql
   }
 
   template<typename T, typename... Ts>
-  constexpr bool holds_alternative( const ql::Variant<Ts...>& variant )
+  FORCEINLINE constexpr bool holds_alternative( const ql::Variant<Ts...>& variant )
   {
-    using variant_type = std::remove_cvref_t<decltype( variant )>;
-    return variant_index_v<T, variant_type> == variant.index();
+    return variant_index_v<T, ql::Variant<Ts...>> == variant.index();
   }
 
   template<typename VisitorType, typename... VariantTypes>
@@ -419,43 +392,43 @@ namespace std
   };
 
   template<typename T, typename... Ts>
-  constexpr auto& get( ql::Variant<Ts...>& variant )
+  FORCEINLINE constexpr auto& get( ql::Variant<Ts...>& variant )
   {
     return variant.template get<T>();
   }
 
   template<typename T, typename... Ts>
-  constexpr const auto& get( const ql::Variant<Ts...>& variant )
+  FORCEINLINE constexpr const auto& get( const ql::Variant<Ts...>& variant )
   {
     return variant.template get<T>();
   }
 
   template<std::size_t I, typename... Ts>
-  constexpr auto& get( ql::Variant<Ts...>& variant )
+  FORCEINLINE constexpr auto& get( ql::Variant<Ts...>& variant )
   {
     return variant.template get<I>();
   }
 
   template<std::size_t I, typename... Ts>
-  constexpr const auto& get( const ql::Variant<Ts...>& variant )
+  FORCEINLINE constexpr const auto& get( const ql::Variant<Ts...>& variant )
   {
     return variant.template get<I>();
   }
 
   template<std::size_t I, typename... Ts>
-  constexpr auto& get( ql::VariadicUnion<Ts...>& variant )
+  FORCEINLINE constexpr auto& get( ql::VariadicUnion<Ts...>& variant )
   {
     return variant.template get<I>();
   }
 
   template<std::size_t I, typename... Ts>
-  constexpr const auto& get( const ql::VariadicUnion<Ts...>& variant )
+  FORCEINLINE constexpr const auto& get( const ql::VariadicUnion<Ts...>& variant )
   {
     return variant.template get<I>();
   }
 
   template<typename T, typename... Ts>
-  constexpr bool holds_alternative( const ql::Variant<Ts...>& variant )
+  FORCEINLINE constexpr bool holds_alternative( const ql::Variant<Ts...>& variant )
   {
     return ql::holds_alternative<T>( variant );
   }

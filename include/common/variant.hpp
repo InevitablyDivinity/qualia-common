@@ -233,7 +233,7 @@ namespace ql
     static constexpr std::size_t invalid_variant = sizeof...( Ts );
 
     template<std::size_t I, typename T>
-    FORCEINLINE constexpr void construct( T&& value )
+    inline constexpr void construct( T&& value )
     {
       // Construct in-place
       m_typeIndex = I;
@@ -241,14 +241,14 @@ namespace ql
     }
 
     template<std::size_t I, typename T>
-    FORCEINLINE constexpr void assign( T&& value )
+    inline constexpr void assign( T&& value )
     {
       m_typeIndex = I;
       m_union.template assign<I>( forward<T>( value ) );
     }
 
     template<typename T>
-    FORCEINLINE constexpr void assign( T&& value )
+    inline constexpr void assign( T&& value )
     {
       constexpr std::size_t index = type_index_for_overload_selection_v<T, Ts...>;
 
@@ -264,7 +264,7 @@ namespace ql
       }
     }
 
-    FORCEINLINE constexpr void destruct()
+    inline constexpr void destruct()
     {
       if ( m_typeIndex != invalid_variant )
       {
